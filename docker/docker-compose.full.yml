@@ -1,0 +1,44 @@
+# Bổ sung backend và frontend cho docker-compose.yml ở thư mục gốc.
+# Dùng:
+#   docker compose -f docker-compose.yml -f docker/docker-compose.full.yml up -d --build
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    container_name: tpt_doi_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # Trong mạng nội bộ của Docker, PostgreSQL vẫn nghe ở cổng 5432.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tpt}:${POSTGRES_PASSWORD:-tpt_secret}@postgres:5432/${POSTGRES_DB:-tpt_doi_thcs}?schema=public
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      JWT_SECRET: ${JWT_SECRET:?Hãy đặt JWT_SECRET trong tệp .env ở thư mục gốc}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Hãy đặt JWT_REFRESH_SECRET trong tệp .env ở thư mục gốc}
+      MAX_FILE_MB: ${MAX_FILE_MB:-25}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${BACKEND_PORT:-4000}:4000"
+    volumes:
+      - tpt_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+    container_name: tpt_doi_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+
+volumes:
+  tpt_uploads:
+    name: tpt_doi_uploads

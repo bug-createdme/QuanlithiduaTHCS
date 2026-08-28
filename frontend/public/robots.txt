@@ -1,0 +1,3 @@
+# Ứng dụng nội bộ nhà trường — không lập chỉ mục.
+User-agent: *
+Disallow: /

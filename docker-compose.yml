@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tpt_doi_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tpt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tpt_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-tpt_doi_thcs}
+      # Sắp xếp/so sánh chuỗi theo tiếng Việt
+      LANG: vi_VN.utf8
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=vi-VN --encoding=UTF8"
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - tpt_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tpt} -d ${POSTGRES_DB:-tpt_doi_thcs}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  adminer:
+    image: adminer:4
+    container_name: tpt_doi_adminer
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+
+volumes:
+  tpt_pgdata:
+    name: tpt_doi_pgdata

@@ -1,0 +1,46 @@
+# ---- Phụ thuộc ----
+node_modules/
+.pnp/
+.pnp.js
+
+# ---- Biến môi trường (KHÔNG BAO GIỜ commit) ----
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ---- Kết quả build ----
+dist/
+.next/
+.next-prod/
+out/
+build/
+*.tsbuildinfo
+
+# ---- Dữ liệu người dùng ----
+backend/uploads/
+backend/backups/
+
+# ---- Prisma ----
+# Migration PHẢI được commit; chỉ bỏ qua client sinh tự động.
+backend/node_modules/.prisma/
+
+# ---- Log & cache ----
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+.cache/
+
+# ---- Hệ điều hành / IDE ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# ---- Kiểm thử ----
+coverage/
+backend/tests/.uploads/

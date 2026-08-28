@@ -1,0 +1,1399 @@
+// ============================================================================
+//  Trợ lý Tổng phụ trách Đội THCS — PostgreSQL schema
+//  Thiết kế theo DATABASE_DESIGN.md, suy dẫn từ nghiệp vụ website gốc.
+//  Quy ước: model PascalCase ↔ bảng snake_case; field camelCase ↔ cột snake_case.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── ENUMS ──────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+enum YearStatus {
+  OPEN
+  ARCHIVED
+}
+enum PlanLevel {
+  YEAR
+  SEMESTER
+  MONTH
+  WEEK
+}
+enum PlanStatus {
+  DRAFT
+  ACTIVE
+  FINISHED
+}
+enum TaskStatus {
+  TODO
+  DOING
+  WAITING
+  REVIEW
+  DONE
+  PAUSED
+}
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+enum RepeatRule {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+enum DependencyType {
+  FINISH_TO_START
+  START_TO_START
+}
+enum ActivityStatus {
+  PLANNED
+  ACTIVE
+  FINISHED
+}
+enum CriteriaFormula {
+  BASE
+  SUM
+  WEIGHTED
+}
+enum CriteriaSetStatus {
+  DRAFT
+  ACTIVE
+  STOPPED
+}
+enum CriterionDataType {
+  SCORE
+  COUNT
+  BOOLEAN
+  CHOICE
+  NOTE
+}
+enum SheetStatus {
+  DRAFT
+  COMPLETE
+  REVIEW
+  APPROVED
+  LOCKED
+  UNLOCKED
+}
+enum EntryState {
+  VALUE
+  NA
+  EXEMPT
+}
+enum ProgramStatus {
+  DRAFT
+  APPROVED
+}
+enum ApprovalStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+}
+enum DocumentStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+}
+enum AttachmentStatus {
+  ACTIVE
+  ARCHIVED
+}
+enum SyncStatus {
+  PENDING
+  SYNCED
+}
+enum EquipmentTxType {
+  BORROW
+  RETURN
+  REPAIR
+  DISPOSE
+}
+enum ReportType {
+  WEEK
+  SCORES
+  TASKS
+  ACTIVITIES
+  EQUIPMENT
+  YEAR_SUMMARY
+}
+enum ReportStatus {
+  DRAFT
+  FINALIZED
+}
+enum SubmissionStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  ACCEPTED
+}
+enum CustomFieldType {
+  SHORT_TEXT
+  LONG_TEXT
+  NUMBER
+  DATE
+  SINGLE_CHOICE
+  MULTI_CHOICE
+  BOOLEAN
+  LINK
+  FILE
+}
+enum SnapshotTier {
+  MANUAL
+  DAILY
+  WEEKLY
+  MONTHLY
+  PROTECTED
+}
+enum BackupScope {
+  QUICK
+  FULL
+  YEAR_PACKAGE
+}
+enum YearTransitionAction {
+  CREATE
+  CLOSE
+  EDIT_OVERRIDE
+}
+
+// ──────────────────────── XÁC THỰC & NGƯỜI DÙNG ─────────────────────────────
+
+/// Thay thế mật khẩu hard-code "admin@" của bản gốc.
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  username        String    @unique @db.VarChar(64)
+  email           String?   @unique @db.VarChar(160)
+  passwordHash    String    @map("password_hash")
+  fullName        String    @map("full_name") @db.VarChar(120)
+  role            UserRole  @default(EDITOR)
+  active          Boolean   @default(true)
+  mustChangePassword Boolean @default(false) @map("must_change_password")
+
+  /// Tái hiện SessionLockManager: backoff mũ 2 sau 3 lần sai, tối đa 30 giây.
+  failedAttempts  Int       @default(0) @map("failed_attempts")
+  blockedUntil    DateTime? @map("blocked_until") @db.Timestamptz(3)
+  lastLoginAt     DateTime? @map("last_login_at") @db.Timestamptz(3)
+  autoLockMinutes Int       @default(10) @map("auto_lock_minutes")
+
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision        Int       @default(1)
+
+  sessions        Session[]
+  auditLogs       AuditLog[]
+  approvedSheets  WeeklyScoreSheet[] @relation("SheetApprover")
+  lockedSheets    WeeklyScoreSheet[] @relation("SheetLocker")
+  reports         GeneratedReport[]
+  reportPackages  ReportPackage[]
+  snapshots       Snapshot[]
+  backupRecords   BackupRecord[]
+  fileVersions    FileVersion[]
+  yearTransitions YearTransitionLog[]
+
+  @@index([active])
+  @@map("users")
+}
+
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// SHA-256 của refresh token — không bao giờ lưu token thô.
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  userAgent String?   @map("user_agent")
+  ipAddress String?   @map("ip_address") @db.VarChar(45)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("sessions")
+}
+
+// ──────────────────────── CƠ CẤU TỔ CHỨC TRƯỜNG ─────────────────────────────
+
+model School {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @db.VarChar(200)
+  code          String?  @db.VarChar(50)
+  address       String?  @db.VarChar(300)
+  reporter      String?  @db.VarChar(120)
+  reporterTitle String   @default("Tổng phụ trách Đội") @map("reporter_title") @db.VarChar(120)
+  isSample      Boolean  @default(false) @map("is_sample")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  campuses    Campus[]
+  schoolYears SchoolYear[]
+
+  @@map("schools")
+}
+
+model Campus {
+  id       String @id @default(uuid()) @db.Uuid
+  schoolId String @map("school_id") @db.Uuid
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name     String @db.VarChar(120)
+  /// Chỉ chữ không dấu, số, gạch ngang, gạch dưới — viết hoa. Duy nhất toàn hệ thống.
+  code     String @unique @db.VarChar(30)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  classes          Class[]
+  plans            Plan[]
+  tasks            Task[]
+  calendarEvents   CalendarEvent[]
+  activities       Activity[]
+  criteriaSets     CriteriaSet[]
+  scoreSheets      WeeklyScoreSheet[]
+  scoreEntries     ScoreEntry[]
+  rankingSnapshots RankingSnapshot[]
+  teamUnits        TeamUnit[]
+  teamMembers      TeamMember[]
+  programResults   ProgramResult[]
+  commendations    Commendation[]
+  documents        Document[]
+  equipment        Equipment[]
+  reports          GeneratedReport[]
+
+  @@index([schoolId])
+  @@map("campuses")
+}
+
+model SchoolYear {
+  id        String     @id @default(uuid()) @db.Uuid
+  schoolId  String     @map("school_id") @db.Uuid
+  school    School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name      String     @db.VarChar(50)
+  startDate DateTime   @map("start_date") @db.Date
+  endDate   DateTime   @map("end_date") @db.Date
+  /// Chỉ đúng một năm học được đánh dấu hiện hành.
+  isCurrent Boolean    @default(false) @map("is_current")
+  status    YearStatus @default(OPEN)
+  readOnly  Boolean    @default(false) @map("read_only")
+  closedAt  DateTime?  @map("closed_at") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  semesters        Semester[]
+  weeks            SchoolWeek[]
+  classes          Class[]
+  homeroomTeachers HomeroomTeacher[]
+  plans            Plan[]
+  tasks            Task[]
+  calendarEvents   CalendarEvent[]
+  activities       Activity[]
+  criteriaSets     CriteriaSet[]
+  scoreSheets      WeeklyScoreSheet[]
+  scoreEntries     ScoreEntry[]
+  rankingSnapshots RankingSnapshot[]
+  teamUnits        TeamUnit[]
+  teamMembers      TeamMember[]
+  programResults   ProgramResult[]
+  commendations    Commendation[]
+  documentFolders  DocumentFolder[]
+  documents        Document[]
+  equipment        Equipment[]
+  reports          GeneratedReport[]
+  reportPackages   ReportPackage[]
+  snapshots        Snapshot[]
+
+  @@unique([schoolId, name])
+  @@index([isCurrent])
+  @@map("school_years")
+}
+
+model Semester {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  name         String     @db.VarChar(50)
+  startDate    DateTime   @map("start_date") @db.Date
+  endDate      DateTime   @map("end_date") @db.Date
+  sortOrder    Int        @default(1) @map("sort_order")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  weeks            SchoolWeek[]
+  plans            Plan[]
+  tasks            Task[]
+  criteriaSets     CriteriaSet[]
+  scoreSheets      WeeklyScoreSheet[]
+  scoreEntries     ScoreEntry[]
+  rankingSnapshots RankingSnapshot[]
+
+  @@unique([schoolYearId, name])
+  @@map("semesters")
+}
+
+/// 40 tuần sinh tự động từ ngày bắt đầu năm học, mỗi tuần 7 ngày.
+model SchoolWeek {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  semesterId   String?    @map("semester_id") @db.Uuid
+  semester     Semester?  @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  number       Int
+  name         String     @db.VarChar(40)
+  startDate    DateTime   @map("start_date") @db.Date
+  endDate      DateTime   @map("end_date") @db.Date
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  scoreSheets      WeeklyScoreSheet[]
+  scoreEntries     ScoreEntry[]
+  rankingSnapshots RankingSnapshot[]
+
+  @@unique([schoolYearId, number])
+  @@index([schoolYearId, startDate])
+  @@map("school_weeks")
+}
+
+model HomeroomTeacher {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  fullName     String     @map("full_name") @db.VarChar(120)
+  phone        String?    @db.VarChar(30)
+  email        String?    @db.VarChar(160)
+  note         String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  classes Class[]
+
+  @@index([schoolYearId])
+  @@map("homeroom_teachers")
+}
+
+model Class {
+  id                String           @id @default(uuid()) @db.Uuid
+  schoolYearId      String           @map("school_year_id") @db.Uuid
+  schoolYear        SchoolYear       @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  campusId          String           @map("campus_id") @db.Uuid
+  campus            Campus           @relation(fields: [campusId], references: [id], onDelete: Restrict)
+  code              String?          @db.VarChar(30)
+  className         String           @map("class_name") @db.VarChar(50)
+  grade             Int
+  /// Giữ nguyên kiểu text tự do như bản gốc; liên kết chuẩn hóa là tùy chọn.
+  teacher           String?          @db.VarChar(120)
+  homeroomTeacherId String?          @map("homeroom_teacher_id") @db.Uuid
+  homeroomTeacher   HomeroomTeacher? @relation(fields: [homeroomTeacherId], references: [id], onDelete: SetNull)
+  active            Boolean          @default(true)
+  isSample          Boolean          @default(false) @map("is_sample")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  scoreEntries ScoreEntry[]
+  teamMembers  TeamMember[]
+
+  @@unique([schoolYearId, className])
+  @@index([campusId])
+  @@index([schoolYearId, active])
+  @@map("classes")
+}
+
+// ─────────────────────────────── KẾ HOẠCH ───────────────────────────────────
+
+model Plan {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  semesterId   String?    @map("semester_id") @db.Uuid
+  semester     Semester?  @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  campusId     String?    @map("campus_id") @db.Uuid
+  campus       Campus?    @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  code         String     @db.VarChar(50)
+  name         String     @db.VarChar(200)
+  level        PlanLevel
+  startDate    DateTime   @map("start_date") @db.Date
+  endDate      DateTime   @map("end_date") @db.Date
+  objectives   String
+  targets      String?
+  basis        String?
+  coordination String?    @db.VarChar(200)
+  resources    String?    @db.VarChar(200)
+  risks        String?
+  status       PlanStatus @default(DRAFT)
+  progress     Int        @default(0)
+  customValues Json?      @map("custom_values")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  planTargets PlanTarget[]
+
+  @@index([schoolYearId, campusId])
+  @@index([status])
+  @@map("plans")
+}
+
+model PlanTarget {
+  id          String   @id @default(uuid()) @db.Uuid
+  planId      String   @map("plan_id") @db.Uuid
+  plan        Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  name        String   @db.VarChar(200)
+  targetValue Decimal? @map("target_value") @db.Decimal(12, 2)
+  actualValue Decimal? @map("actual_value") @db.Decimal(12, 2)
+  unit        String?  @db.VarChar(30)
+  sortOrder   Int      @default(1) @map("sort_order")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([planId, sortOrder])
+  @@map("plan_targets")
+}
+
+// ─────────────────────────────── CÔNG VIỆC ──────────────────────────────────
+
+model Task {
+  id           String       @id @default(uuid()) @db.Uuid
+  schoolYearId String       @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear   @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  semesterId   String?      @map("semester_id") @db.Uuid
+  semester     Semester?    @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  campusId     String?      @map("campus_id") @db.Uuid
+  campus       Campus?      @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  title        String       @db.VarChar(200)
+  groupName    String?      @map("group_name") @db.VarChar(80)
+  startDate    DateTime?    @map("start_date") @db.Date
+  dueDate      DateTime     @map("due_date") @db.Date
+  priority     TaskPriority @default(NORMAL)
+  status       TaskStatus   @default(TODO)
+  progress     Int          @default(0)
+  coordination String?      @db.VarChar(200)
+  obstacle     String?
+  notes        String?
+
+  repeatRule          RepeatRule @default(NONE) @map("repeat_rule")
+  repeatUntil         DateTime?  @map("repeat_until") @db.Date
+  repeatNextAt        DateTime?  @map("repeat_next_at") @db.Date
+  repeatSourceId      String?    @map("repeat_source_id") @db.Uuid
+  repeatSource        Task?      @relation("TaskRepeat", fields: [repeatSourceId], references: [id], onDelete: SetNull)
+  repeatOccurrences   Task[]     @relation("TaskRepeat")
+  /// "{sourceId}:{dueDate}" — chống sinh trùng bản lặp.
+  repeatOccurrenceKey String?    @unique @map("repeat_occurrence_key") @db.VarChar(120)
+
+  customValues Json?   @map("custom_values")
+  isSample     Boolean @default(false) @map("is_sample")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  checkItems   TaskCheckItem[]
+  dependencies TaskDependency[] @relation("TaskOwner")
+  dependents   TaskDependency[] @relation("TaskDependsOn")
+
+  @@index([schoolYearId, status])
+  @@index([dueDate])
+  @@index([campusId])
+  @@index([repeatNextAt])
+  @@map("tasks")
+}
+
+model TaskCheckItem {
+  id        String  @id @default(uuid()) @db.Uuid
+  taskId    String  @map("task_id") @db.Uuid
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label     String  @db.VarChar(200)
+  /// Dòng bắt đầu bằng "!" trong textarea checklist.
+  required  Boolean @default(false)
+  done      Boolean @default(false)
+  sortOrder Int     @default(0) @map("sort_order")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([taskId, sortOrder])
+  @@map("task_check_items")
+}
+
+model TaskDependency {
+  id          String         @id @default(uuid()) @db.Uuid
+  taskId      String         @map("task_id") @db.Uuid
+  task        Task           @relation("TaskOwner", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnId String         @map("depends_on_id") @db.Uuid
+  dependsOn   Task           @relation("TaskDependsOn", fields: [dependsOnId], references: [id], onDelete: Restrict)
+  type        DependencyType @default(FINISH_TO_START)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@unique([taskId, dependsOnId])
+  @@map("task_dependencies")
+}
+
+/// 16 mẫu hard-code trong showTaskTemplates() của bản gốc, nay là dữ liệu.
+model TaskTemplate {
+  id                   String  @id @default(uuid()) @db.Uuid
+  title                String  @db.VarChar(200)
+  groupName            String  @default("Mẫu tham khảo") @map("group_name") @db.VarChar(80)
+  defaultDueOffsetDays Int     @default(7) @map("default_due_offset_days")
+  sortOrder            Int     @default(1) @map("sort_order")
+  active               Boolean @default(true)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([active, sortOrder])
+  @@map("task_templates")
+}
+
+// ────────────────────────── LỊCH & HOẠT ĐỘNG ────────────────────────────────
+
+model CalendarEvent {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  campusId     String?    @map("campus_id") @db.Uuid
+  campus       Campus?    @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  title         String  @db.VarChar(200)
+  date          DateTime @db.Date
+  time          String? @db.VarChar(5)
+  location      String? @db.VarChar(200)
+  leader        String? @db.VarChar(120)
+  category      String  @default("Hoạt động Đội") @db.VarChar(80)
+  reminderHours Int     @default(24) @map("reminder_hours")
+  /// Checklist an toàn — thiếu sẽ sinh cảnh báo mềm, không chặn lưu.
+  safety        String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([schoolYearId, date])
+  @@index([campusId])
+  @@map("calendar_events")
+}
+
+model Activity {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  campusId     String?    @map("campus_id") @db.Uuid
+  campus       Campus?    @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  name         String         @db.VarChar(200)
+  category     String         @db.VarChar(100)
+  theme        String?        @db.VarChar(150)
+  date         DateTime       @db.Date
+  location     String         @db.VarChar(200)
+  leader       String         @db.VarChar(120)
+  participants String?        @db.VarChar(200)
+  objectives   String?
+  safety       String
+  backupPlan   String?        @map("backup_plan")
+  result       String?
+  status       ActivityStatus @default(PLANNED)
+  customValues Json?          @map("custom_values")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([schoolYearId, date])
+  @@index([status])
+  @@map("activities")
+}
+
+// ──────────────────────── THI ĐUA (cụm trung tâm) ───────────────────────────
+
+model CriteriaSet {
+  id           String            @id @default(uuid()) @db.Uuid
+  schoolYearId String            @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear        @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  semesterId   String?           @map("semester_id") @db.Uuid
+  semester     Semester?         @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  campusId     String?           @map("campus_id") @db.Uuid
+  campus       Campus?           @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  name          String            @db.VarChar(200)
+  version       String            @default("1.0") @db.VarChar(20)
+  formula       CriteriaFormula   @default(BASE)
+  baseScore     Decimal           @default(100) @map("base_score") @db.Decimal(8, 2)
+  status        CriteriaSetStatus @default(DRAFT)
+  effectiveFrom DateTime?         @map("effective_from") @db.Date
+  effectiveTo   DateTime?         @map("effective_to") @db.Date
+  basis         String?
+  /// true khi bộ đã phát sinh bảng điểm — khóa cấu trúc, chỉ cho nhân bản.
+  lockedVersion Boolean           @default(false) @map("locked_version")
+  sourceSetId   String?           @map("source_set_id") @db.Uuid
+  sourceSet     CriteriaSet?      @relation("CriteriaSetVersion", fields: [sourceSetId], references: [id], onDelete: SetNull)
+  derivedSets   CriteriaSet[]     @relation("CriteriaSetVersion")
+  isSample      Boolean           @default(false) @map("is_sample")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  criteria         Criterion[]
+  scoreSheets      WeeklyScoreSheet[]
+  rankingSnapshots RankingSnapshot[]
+
+  @@unique([schoolYearId, name, version])
+  @@index([status])
+  @@map("criteria_sets")
+}
+
+model Criterion {
+  id            String            @id @default(uuid()) @db.Uuid
+  criteriaSetId String            @map("criteria_set_id") @db.Uuid
+  criteriaSet   CriteriaSet       @relation(fields: [criteriaSetId], references: [id], onDelete: Cascade)
+
+  code             String            @db.VarChar(20)
+  groupName        String?           @map("group_name") @db.VarChar(80)
+  name             String            @db.VarChar(200)
+  description      String?
+  dataType         CriterionDataType @default(SCORE) @map("data_type")
+  points           Decimal           @default(0) @db.Decimal(8, 2)
+  minValue         Decimal?          @map("min_value") @db.Decimal(8, 2)
+  maxValue         Decimal?          @map("max_value") @db.Decimal(8, 2)
+  decimals         Int               @default(0)
+  weight           Decimal           @default(1) @db.Decimal(6, 2)
+  sortOrder        Int               @default(99) @map("sort_order")
+  color            String            @default("#0b6bcb") @db.VarChar(7)
+  evidenceRequired Boolean           @default(false) @map("evidence_required")
+  active           Boolean           @default(true)
+  sourceCriteriaId String?           @map("source_criteria_id") @db.Uuid
+  sourceCriteria   Criterion?        @relation("CriterionVersion", fields: [sourceCriteriaId], references: [id], onDelete: SetNull)
+  derivedCriteria  Criterion[]       @relation("CriterionVersion")
+  isSample         Boolean           @default(false) @map("is_sample")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  scoreEntries ScoreEntry[]
+
+  @@unique([criteriaSetId, code])
+  @@index([criteriaSetId, sortOrder])
+  @@map("criteria")
+}
+
+model WeeklyScoreSheet {
+  id            String      @id @default(uuid()) @db.Uuid
+  schoolYearId  String      @map("school_year_id") @db.Uuid
+  schoolYear    SchoolYear  @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  semesterId    String?     @map("semester_id") @db.Uuid
+  semester      Semester?   @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  campusId      String?     @map("campus_id") @db.Uuid
+  campus        Campus?     @relation(fields: [campusId], references: [id], onDelete: SetNull)
+  weekId        String      @map("week_id") @db.Uuid
+  week          SchoolWeek  @relation(fields: [weekId], references: [id], onDelete: Restrict)
+  criteriaSetId String      @map("criteria_set_id") @db.Uuid
+  criteriaSet   CriteriaSet @relation(fields: [criteriaSetId], references: [id], onDelete: Restrict)
+
+  status       SheetStatus @default(DRAFT)
+  approvedAt   DateTime?   @map("approved_at") @db.Timestamptz(3)
+  approvedById String?     @map("approved_by_id") @db.Uuid
+  approvedBy   User?       @relation("SheetApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  lockedAt     DateTime?   @map("locked_at") @db.Timestamptz(3)
+  lockedById   String?     @map("locked_by_id") @db.Uuid
+  lockedBy     User?       @relation("SheetLocker", fields: [lockedById], references: [id], onDelete: SetNull)
+  unlockedAt   DateTime?   @map("unlocked_at") @db.Timestamptz(3)
+  /// Bắt buộc tối thiểu 5 ký tự khi mở khóa.
+  unlockReason String?     @map("unlock_reason")
+  /// Đóng băng bộ tiêu chí tại thời điểm khóa — bảo đảm truy vết lịch sử.
+  criteriaSnapshot Json?   @map("criteria_snapshot")
+  reportsStale     Boolean @default(false) @map("reports_stale")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  entries          ScoreEntry[]
+  rankingSnapshots RankingSnapshot[]
+
+  @@unique([weekId, criteriaSetId, campusId])
+  @@index([schoolYearId, status])
+  @@index([weekId])
+  @@map("weekly_score_sheets")
+}
+
+model ScoreEntry {
+  id           String           @id @default(uuid()) @db.Uuid
+  sheetId      String           @map("sheet_id") @db.Uuid
+  sheet        WeeklyScoreSheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  schoolYearId String           @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear       @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  semesterId   String?          @map("semester_id") @db.Uuid
+  semester     Semester?        @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  campusId     String?          @map("campus_id") @db.Uuid
+  campus       Campus?          @relation(fields: [campusId], references: [id], onDelete: SetNull)
+  weekId       String           @map("week_id") @db.Uuid
+  week         SchoolWeek       @relation(fields: [weekId], references: [id], onDelete: Restrict)
+  classId      String           @map("class_id") @db.Uuid
+  class        Class            @relation(fields: [classId], references: [id], onDelete: Restrict)
+  criteriaId   String           @map("criteria_id") @db.Uuid
+  criterion    Criterion        @relation(fields: [criteriaId], references: [id], onDelete: Restrict)
+
+  /// VALUE = có số; NA = "KAD" không áp dụng; EXEMPT = "MIỄN" được miễn.
+  entryState EntryState @default(VALUE) @map("entry_state")
+  value      Decimal?   @db.Decimal(10, 2)
+  reason     String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  evidence ScoreEvidence[]
+
+  @@unique([sheetId, classId, criteriaId])
+  @@index([sheetId])
+  @@index([classId])
+  @@index([weekId])
+  @@map("score_entries")
+}
+
+model ScoreEvidence {
+  id           String      @id @default(uuid()) @db.Uuid
+  scoreEntryId String      @map("score_entry_id") @db.Uuid
+  scoreEntry   ScoreEntry  @relation(fields: [scoreEntryId], references: [id], onDelete: Cascade)
+  attachmentId String?     @map("attachment_id") @db.Uuid
+  attachment   Attachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  note         String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([scoreEntryId])
+  @@map("score_evidence")
+}
+
+/// Bất biến — tạo tự động khi bảng tuần chuyển APPROVED → LOCKED.
+model RankingSnapshot {
+  id              String           @id @default(uuid()) @db.Uuid
+  schoolYearId    String           @map("school_year_id") @db.Uuid
+  schoolYear      SchoolYear       @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  semesterId      String?          @map("semester_id") @db.Uuid
+  semester        Semester?        @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  campusId        String?          @map("campus_id") @db.Uuid
+  campus          Campus?          @relation(fields: [campusId], references: [id], onDelete: SetNull)
+  weekId          String           @map("week_id") @db.Uuid
+  week            SchoolWeek       @relation(fields: [weekId], references: [id], onDelete: Restrict)
+  sheetId         String           @map("sheet_id") @db.Uuid
+  sheet           WeeklyScoreSheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  criteriaSetId   String           @map("criteria_set_id") @db.Uuid
+  criteriaSet     CriteriaSet      @relation(fields: [criteriaSetId], references: [id], onDelete: Restrict)
+  criteriaVersion String?          @map("criteria_version") @db.VarChar(20)
+  /// [{ classId, className, campusId, total, filled, complete, rank }]
+  rows            Json
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([weekId])
+  @@index([sheetId])
+  @@map("ranking_snapshots")
+}
+
+// ───────────────────── TỔ CHỨC ĐỘI & PHONG TRÀO ─────────────────────────────
+
+model TeamUnit {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  campusId     String?    @map("campus_id") @db.Uuid
+  campus       Campus?    @relation(fields: [campusId], references: [id], onDelete: SetNull)
+  name         String     @db.VarChar(120)
+  description  String?
+  active       Boolean    @default(true)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  members TeamMember[]
+
+  @@index([schoolYearId, active])
+  @@map("team_units")
+}
+
+model TeamMember {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  campusId     String?    @map("campus_id") @db.Uuid
+  campus       Campus?    @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  name         String    @db.VarChar(120)
+  internalCode String?   @map("internal_code") @db.VarChar(40)
+  className    String    @map("class_name") @db.VarChar(50)
+  classId      String?   @map("class_id") @db.Uuid
+  class        Class?    @relation(fields: [classId], references: [id], onDelete: SetNull)
+  unit         String    @db.VarChar(120)
+  teamUnitId   String?   @map("team_unit_id") @db.Uuid
+  teamUnit     TeamUnit? @relation(fields: [teamUnitId], references: [id], onDelete: SetNull)
+  position     String    @db.VarChar(80)
+  term         String    @db.VarChar(60)
+  training     String?
+  customValues Json?     @map("custom_values")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  trainingRecords TrainingRecord[]
+
+  @@index([schoolYearId, unit])
+  @@map("team_members")
+}
+
+model TrainingRecord {
+  id           String     @id @default(uuid()) @db.Uuid
+  teamMemberId String     @map("team_member_id") @db.Uuid
+  teamMember   TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+  content      String     @db.VarChar(200)
+  date         DateTime?  @db.Date
+  result       String?    @db.VarChar(120)
+  note         String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([teamMemberId])
+  @@map("training_records")
+}
+
+model Program {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @db.VarChar(200)
+  type        String? @db.VarChar(80)
+  description String?
+  active      Boolean @default(true)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  results ProgramResult[]
+
+  @@map("programs")
+}
+
+model ProgramResult {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  campusId     String?    @map("campus_id") @db.Uuid
+  campus       Campus?    @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  name           String        @db.VarChar(200)
+  programId      String?       @map("program_id") @db.Uuid
+  program        Program?      @relation(fields: [programId], references: [id], onDelete: SetNull)
+  scope          String        @db.VarChar(150)
+  result         String?       @db.VarChar(200)
+  recognizedDate DateTime?     @map("recognized_date") @db.Date
+  activity       String?       @db.VarChar(200)
+  evidence       String?
+  status         ProgramStatus @default(DRAFT)
+  customValues   Json?         @map("custom_values")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([schoolYearId, status])
+  @@map("program_results")
+}
+
+model Commendation {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  campusId     String?    @map("campus_id") @db.Uuid
+  campus       Campus?    @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  awardType      String         @map("award_type") @db.VarChar(100)
+  level          String         @db.VarChar(80)
+  recipient      String         @db.VarChar(200)
+  achievement    String
+  date           DateTime?      @db.Date
+  related        String?        @db.VarChar(200)
+  approvalStatus ApprovalStatus @default(DRAFT) @map("approval_status")
+  decision       String?        @db.VarChar(120)
+  notes          String?
+  customValues   Json?          @map("custom_values")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([schoolYearId, approvalStatus])
+  @@map("commendations")
+}
+
+// ───────────────────────── HỒ SƠ – MINH CHỨNG ───────────────────────────────
+
+model DocumentFolder {
+  id           String           @id @default(uuid()) @db.Uuid
+  schoolYearId String           @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear       @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  name         String           @db.VarChar(150)
+  parentId     String?          @map("parent_id") @db.Uuid
+  parent       DocumentFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children     DocumentFolder[] @relation("FolderTree")
+  sortOrder    Int              @default(1) @map("sort_order")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  documents Document[]
+
+  @@unique([schoolYearId, parentId, name])
+  @@map("document_folders")
+}
+
+model Document {
+  id           String          @id @default(uuid()) @db.Uuid
+  schoolYearId String          @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear      @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  campusId     String?         @map("campus_id") @db.Uuid
+  campus       Campus?         @relation(fields: [campusId], references: [id], onDelete: SetNull)
+  folderId     String?         @map("folder_id") @db.Uuid
+  folder       DocumentFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  name         String         @db.VarChar(250)
+  type         String         @db.VarChar(80)
+  documentNo   String?        @map("document_no") @db.VarChar(80)
+  issuer       String?        @db.VarChar(150)
+  date         DateTime?      @db.Date
+  related      String?        @db.VarChar(200)
+  tags         String?        @db.VarChar(250)
+  description  String?
+  status       DocumentStatus @default(DRAFT)
+  pinned       Boolean        @default(false)
+  /// Chuẩn hóa bỏ dấu của name+tags+description+documentNo — phục vụ GIN index.
+  searchText   String?        @map("search_text")
+  customValues Json?          @map("custom_values")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  attachments Attachment[]
+  links       DocumentLink[]
+
+  @@index([schoolYearId, folderId])
+  @@index([pinned, updatedAt])
+  @@index([deletedAt])
+  @@map("documents")
+}
+
+model Attachment {
+  id         String           @id @default(uuid()) @db.Uuid
+  documentId String           @map("document_id") @db.Uuid
+  document   Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  fileName   String           @map("file_name") @db.VarChar(250)
+  extension  String?          @db.VarChar(12)
+  mimeType   String?          @map("mime_type") @db.VarChar(120)
+  size       BigInt           @default(0)
+  /// SHA-256 như bản gốc.
+  checksum   String?          @db.Char(64)
+  storagePath String          @map("storage_path")
+  version    Int              @default(1)
+  status     AttachmentStatus @default(ACTIVE)
+  syncStatus SyncStatus       @default(SYNCED) @map("sync_status")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  versions FileVersion[]
+  evidence ScoreEvidence[]
+
+  @@index([documentId, version])
+  @@index([checksum])
+  @@map("attachments")
+}
+
+model FileVersion {
+  id           String     @id @default(uuid()) @db.Uuid
+  attachmentId String     @map("attachment_id") @db.Uuid
+  attachment   Attachment @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+  version      Int
+  fileName     String     @map("file_name") @db.VarChar(250)
+  size         BigInt     @default(0)
+  checksum     String?    @db.Char(64)
+  storagePath  String     @map("storage_path")
+  replacedAt   DateTime?  @map("replaced_at") @db.Timestamptz(3)
+  replacedById String?    @map("replaced_by_id") @db.Uuid
+  replacedBy   User?      @relation(fields: [replacedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@unique([attachmentId, version])
+  @@map("file_versions")
+}
+
+/// Liên kết hồ sơ với bản ghi nghiệp vụ bất kỳ (polymorphic).
+model DocumentLink {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  entityType String   @map("entity_type") @db.VarChar(60)
+  entityId   String   @map("entity_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@unique([documentId, entityType, entityId])
+  @@index([entityType, entityId])
+  @@map("document_links")
+}
+
+// ─────────────────────────────── THIẾT BỊ ───────────────────────────────────
+
+model Equipment {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  campusId     String?    @map("campus_id") @db.Uuid
+  campus       Campus?    @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  name          String    @db.VarChar(200)
+  code          String    @db.VarChar(50)
+  groupName     String?   @map("group_name") @db.VarChar(80)
+  quantity      Int       @default(0)
+  unit          String    @db.VarChar(30)
+  condition     String    @db.VarChar(40)
+  location      String?   @db.VarChar(150)
+  inventoryDate DateTime? @map("inventory_date") @db.Date
+  activity      String?   @db.VarChar(200)
+  notes         String?
+  customValues  Json?     @map("custom_values")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  transactions EquipmentTransaction[]
+
+  @@unique([schoolYearId, code])
+  @@index([campusId])
+  @@map("equipment")
+}
+
+model EquipmentTransaction {
+  id              String            @id @default(uuid()) @db.Uuid
+  equipmentId     String            @map("equipment_id") @db.Uuid
+  equipment       Equipment         @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  type            EquipmentTxType
+  quantity        Int
+  borrower        String?           @db.VarChar(120)
+  borrowedAt      DateTime?         @map("borrowed_at") @db.Timestamptz(3)
+  dueAt           DateTime?         @map("due_at") @db.Timestamptz(3)
+  returnedAt      DateTime?         @map("returned_at") @db.Timestamptz(3)
+  conditionBefore String?           @map("condition_before") @db.VarChar(40)
+  conditionAfter  String?           @map("condition_after") @db.VarChar(40)
+  note            String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([equipmentId, borrowedAt])
+  @@map("equipment_transactions")
+}
+
+// ─────────────────────────────── BÁO CÁO ────────────────────────────────────
+
+model GeneratedReport {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  campusId     String?    @map("campus_id") @db.Uuid
+  campus       Campus?    @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  name              String           @db.VarChar(250)
+  type              ReportType
+  version           Int              @default(1)
+  status            ReportStatus     @default(DRAFT)
+  /// true khi status = FINALIZED — API từ chối mọi PATCH/DELETE.
+  immutable         Boolean          @default(false)
+  recipient         String?          @db.VarChar(200)
+  submissionStatus  SubmissionStatus @default(NOT_SUBMITTED) @map("submission_status")
+  filters           Json?
+  scope             Json?
+  contentHtml       String?          @map("content_html")
+  contentText       String?          @map("content_text")
+  contentChecksum   String?          @map("content_checksum") @db.Char(64)
+  sourceChecksum    String?          @map("source_checksum") @db.Char(64)
+  sourceRecordCount Int              @default(0) @map("source_record_count")
+  configSnapshot    Json?            @map("config_snapshot")
+  generatedAt       DateTime         @default(now()) @map("generated_at") @db.Timestamptz(3)
+  finalizedAt       DateTime?        @map("finalized_at") @db.Timestamptz(3)
+  createdById       String?          @map("created_by_id") @db.Uuid
+  createdBy         User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@unique([schoolYearId, type, version])
+  @@index([status, generatedAt])
+  @@map("generated_reports")
+}
+
+model ReportPackage {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  name         String     @db.VarChar(250)
+  checksum     String?    @db.Char(64)
+  reportCount  Int        @default(0) @map("report_count")
+  payload      Json
+  createdById  String?    @map("created_by_id") @db.Uuid
+  createdBy    User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([schoolYearId])
+  @@map("report_packages")
+}
+
+// ────────────────────────── CẤU HÌNH ĐỘNG ───────────────────────────────────
+
+model ConfigCategory {
+  id        String @id @default(uuid()) @db.Uuid
+  key       String @unique @db.VarChar(60)
+  name      String @db.VarChar(150)
+  sortOrder Int    @default(1) @map("sort_order")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  items ConfigItem[]
+
+  @@map("config_categories")
+}
+
+model ConfigItem {
+  id          String         @id @default(uuid()) @db.Uuid
+  categoryId  String         @map("category_id") @db.Uuid
+  category    ConfigCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  /// Denormalize để truy vấn danh mục nhanh, không cần join.
+  categoryKey String         @map("category_key") @db.VarChar(60)
+  label       String         @db.VarChar(150)
+  code        String         @db.VarChar(60)
+  color       String         @default("#0b6bcb") @db.VarChar(7)
+  icon        String         @default("•") @db.VarChar(8)
+  sortOrder   Int            @default(99) @map("sort_order")
+  description String?
+  /// Ngừng dùng ≠ xóa: active=false vẫn giữ nguyên trong dữ liệu lịch sử.
+  active      Boolean        @default(true)
+  isDefault   Boolean        @default(false) @map("is_default")
+  searchText  String?        @map("search_text")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@unique([categoryId, code])
+  @@index([categoryKey, active, sortOrder])
+  @@map("config_items")
+}
+
+model CustomFieldDefinition {
+  id          String          @id @default(uuid()) @db.Uuid
+  entityType  String          @map("entity_type") @db.VarChar(40)
+  name        String          @db.VarChar(150)
+  fieldType   CustomFieldType @default(SHORT_TEXT) @map("field_type")
+  /// Các lựa chọn ngăn bằng dấu "|".
+  options     String?
+  description String?
+  required    Boolean         @default(false)
+  sortOrder   Int             @default(99) @map("sort_order")
+  active      Boolean         @default(true)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  revision  Int       @default(1)
+
+  @@index([entityType, active, sortOrder])
+  @@map("custom_field_definitions")
+}
+
+model AppSetting {
+  key       String   @id @db.VarChar(80)
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("app_settings")
+}
+
+// ───────────────────────── NHẬT KÝ & SAO LƯU ────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  action    String   @db.VarChar(60)
+  entity    String   @db.VarChar(60)
+  entityId  String?  @map("entity_id") @db.Uuid
+  summary   String?
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  reason    String?
+  userId    String?  @map("user_id") @db.Uuid
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([entity, createdAt])
+  @@index([entityId])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+/// Điểm khôi phục nội bộ — giữ 7 ngày · 4 tuần · 12 tháng; protected miễn trừ.
+model Snapshot {
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String       @db.VarChar(250)
+  tier         SnapshotTier @default(MANUAL)
+  protected    Boolean      @default(false)
+  reason       String?      @db.VarChar(80)
+  schoolYearId String?      @map("school_year_id") @db.Uuid
+  schoolYear   SchoolYear?  @relation(fields: [schoolYearId], references: [id], onDelete: SetNull)
+  recordCount  Int          @default(0) @map("record_count")
+  counts       Json?
+  checksum     String?      @db.Char(64)
+  /// Không chứa tệp nhị phân — tránh nhân đôi dung lượng.
+  payload      Json
+  createdById  String?      @map("created_by_id") @db.Uuid
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([createdAt])
+  @@index([tier, protected])
+  @@map("snapshots")
+}
+
+model BackupRecord {
+  id          String      @id @default(uuid()) @db.Uuid
+  name        String      @db.VarChar(250)
+  scope       BackupScope @default(QUICK)
+  size        BigInt      @default(0)
+  checksum    String?     @db.Char(64)
+  recordCount Int         @default(0) @map("record_count")
+  completedAt DateTime?   @map("completed_at") @db.Timestamptz(3)
+  createdById String?     @map("created_by_id") @db.Uuid
+  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([completedAt])
+  @@map("backup_records")
+}
+
+model MigrationLog {
+  id          String    @id @default(uuid()) @db.Uuid
+  fromSchema  Int?      @map("from_schema")
+  toSchema    Int?      @map("to_schema")
+  status      String    @db.VarChar(40)
+  detail      Json?
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("migration_logs")
+}
+
+model YearTransitionLog {
+  id         String               @id @default(uuid()) @db.Uuid
+  fromYearId String?              @map("from_year_id") @db.Uuid
+  toYearId   String?              @map("to_year_id") @db.Uuid
+  action     YearTransitionAction
+  reason     String?
+  detail     Json?
+  userId     String?              @map("user_id") @db.Uuid
+  user       User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt  DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([createdAt])
+  @@map("year_transition_logs")
+}

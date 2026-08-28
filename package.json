@@ -1,0 +1,32 @@
+{
+  "name": "tpt-doi-thcs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Trợ lý Tổng phụ trách Đội THCS — frontend Next.js, backend Node.js, PostgreSQL",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "//": "Dùng --prefix thay vì npm workspaces để backend và frontend giữ node_modules riêng. Prisma Client sinh ra trong backend/node_modules; nếu bật workspaces, npm sẽ hoist và làm hỏng đường dẫn đó.",
+  "scripts": {
+    "test": "npm test --prefix backend && npm test --prefix frontend",
+    "test:backend": "npm test --prefix backend",
+    "test:frontend": "npm test --prefix frontend",
+    "test:unit": "npm run test:unit --prefix backend && npm test --prefix frontend",
+    "test:integration": "npm run test:integration --prefix backend",
+    "test:coverage": "npm run test:coverage --prefix backend",
+    "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "clean": "npm run clean --prefix backend && npm run clean --prefix frontend",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build",
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run prisma:deploy --prefix backend",
+    "db:seed": "npm run seed --prefix backend",
+    "db:reset": "npm run db:reset --prefix backend",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend"
+  }
+}
