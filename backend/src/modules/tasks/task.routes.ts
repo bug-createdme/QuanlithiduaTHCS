@@ -16,7 +16,7 @@ import {
 } from '../../lib/http';
 import { prisma } from '../../lib/prisma';
 import { parseScope, scopeWhere } from '../../lib/scope';
-import { toCsv } from '../../lib/text';
+import { escapeLike, toCsv } from '../../lib/text';
 import { currentUserId, requireAuth, requireWrite } from '../../middleware/auth';
 import {
   customValuesSchema,
@@ -93,13 +93,14 @@ function buildTaskWhere(req: Request): Record<string, unknown> {
   if (query.status) and.push({ status: query.status });
   if (query.priority) and.push({ priority: query.priority });
   if (query.q) {
+    const needle = escapeLike(query.q);
     and.push({
       OR: [
-        { title: { contains: query.q, mode: 'insensitive' } },
-        { groupName: { contains: query.q, mode: 'insensitive' } },
-        { coordination: { contains: query.q, mode: 'insensitive' } },
-        { notes: { contains: query.q, mode: 'insensitive' } },
-        { obstacle: { contains: query.q, mode: 'insensitive' } },
+        { title: { contains: needle, mode: 'insensitive' } },
+        { groupName: { contains: needle, mode: 'insensitive' } },
+        { coordination: { contains: needle, mode: 'insensitive' } },
+        { notes: { contains: needle, mode: 'insensitive' } },
+        { obstacle: { contains: needle, mode: 'insensitive' } },
       ],
     });
   }

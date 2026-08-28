@@ -19,6 +19,17 @@ export function buildSearchText(...parts: unknown[]): string {
   return normalizeText(parts.filter((p) => p !== null && p !== undefined && p !== '').join(' '));
 }
 
+/**
+ * Vô hiệu hóa ký tự đại diện của LIKE/ILIKE trong từ khóa người dùng gõ.
+ *
+ * `contains` của Prisma đưa thẳng chuỗi vào ILIKE nên `%` và `_` vẫn còn tác
+ * dụng đại diện: gõ một dấu `%` sẽ khớp mọi bản ghi. PostgreSQL mặc định lấy
+ * `\` làm ký tự thoát, nên chỉ cần nhân đôi `\` rồi thoát `%` và `_`.
+ */
+export function escapeLike(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/[%_]/g, (char) => `\\${char}`);
+}
+
 /** So sánh tên lớp/chuỗi có số theo thứ tự tự nhiên tiếng Việt: 6/A2 < 6/A10. */
 export function compareVietnamese(a: string, b: string): number {
   return String(a).localeCompare(String(b), 'vi', { numeric: true, sensitivity: 'base' });

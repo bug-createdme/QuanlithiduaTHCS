@@ -5,7 +5,7 @@ import { writeAudit } from '../../lib/audit';
 import { businessRule, notFound } from '../../lib/errors';
 import { asyncHandler, created, noContent, ok, parseOrThrow } from '../../lib/http';
 import { prisma } from '../../lib/prisma';
-import { currentUserId, requireAuth, requireWrite } from '../../middleware/auth';
+import { currentUserId, requireAuth, requireRole, requireWrite } from '../../middleware/auth';
 import { optionalLongText, optionalText } from '../entities/entity.schemas';
 
 const idSchema = z.object({ id: z.string().uuid() });
@@ -207,7 +207,9 @@ settingsRouter.get(
 
 settingsRouter.delete(
   '/sample',
-  requireWrite,
+  // Xóa dữ liệu mẫu là thao tác toàn cục, không có đường hoàn tác trong giao
+  // diện — xếp cùng nhóm với phục hồi sao lưu, chỉ ADMIN được làm.
+  requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     const userId = currentUserId(req);
 

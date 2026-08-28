@@ -7,11 +7,11 @@ import { z } from 'zod';
 import { env } from '../../config/env';
 import { writeAudit } from '../../lib/audit';
 import { toDbDate } from '../../lib/dates';
-import { badRequest, notFound } from '../../lib/errors';
+import { badRequest, businessRule, notFound } from '../../lib/errors';
 import { asyncHandler, created, noContent, ok, parseOrThrow } from '../../lib/http';
 import { logger } from '../../lib/logger';
 import { prisma } from '../../lib/prisma';
-import { buildSearchText, normalizeText } from '../../lib/text';
+import { buildSearchText, escapeLike, normalizeText } from '../../lib/text';
 import { currentUserId, requireAuth, requireWrite } from '../../middleware/auth';
 import { optionalDate, optionalLongText, optionalText, optionalUuid } from '../entities/entity.schemas';
 
@@ -29,7 +29,13 @@ const upload = multer({
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (!ALLOWED_EXTENSIONS.has(ext)) {
-      cb(new Error(`Định dạng ${ext || 'không xác định'} không được phép tải lên.`));
+      // Phải là AppError, không phải Error thường: errorHandler chỉ nhận diện
+      // AppError và MulterError, còn lại quy về 500 và nuốt mất lời giải thích.
+      cb(
+        badRequest(
+          `Định dạng ${ext || 'không xác định'} không được phép tải lên. Chỉ nhận: ${[...ALLOWED_EXTENSIONS].join(', ')}.`,
+        ),
+      );
       return;
     }
     cb(null, true);
@@ -143,7 +149,7 @@ documentsRouter.get(
 
     if (!trash && query.folderId !== 'root') where.folderId = query.folderId;
     // Tìm kiếm bỏ dấu dựa trên cột search_text đã chuẩn hóa.
-    if (query.q) where.searchText = { contains: normalizeText(query.q) };
+    if (query.q) where.searchText = { contains: escapeLike(normalizeText(query.q)) };
 
     const documents = await prisma.document.findMany({
       where,
@@ -455,8 +461,30 @@ documentsRouter.delete(
     });
     if (!document) throw notFound('Hồ sơ');
 
-    // Xóa tệp vật lý; thất bại thì ghi log chứ không chặn xóa bản ghi.
+    // Xóa vĩnh viễn chỉ dành cho hồ sơ đã nằm trong thùng rác, để không mất
+    // dữ liệu chỉ vì một lời gọi nhầm vào hồ sơ đang dùng.
+    if (!document.deletedAt) {
+      throw businessRule('Chỉ xóa vĩnh viễn được hồ sơ đã nằm trong thùng rác. Hãy xóa hồ sơ trước.');
+    }
+
     for (const attachment of document.attachments) {
+      // persistFile() đặt tên tệp theo checksum nội dung, nên hai hồ sơ có nội
+      // dung giống nhau DÙNG CHUNG một tệp trên đĩa. Chỉ được xóa tệp khi không
+      // còn bản ghi nào khác trỏ tới nó, nếu không hồ sơ kia sẽ mất tệp.
+      const stillReferenced = await prisma.attachment.count({
+        where: { storagePath: attachment.storagePath, documentId: { not: id } },
+      });
+      const keptAsVersion = await prisma.fileVersion.count({
+        where: { storagePath: attachment.storagePath, attachment: { documentId: { not: id } } },
+      });
+      if (stillReferenced > 0 || keptAsVersion > 0) {
+        logger.info(
+          { attachmentId: attachment.id, storagePath: attachment.storagePath, stillReferenced, keptAsVersion },
+          'Giữ lại tệp trên đĩa vì hồ sơ khác vẫn đang dùng chung nội dung',
+        );
+        continue;
+      }
+      // Xóa tệp vật lý; thất bại thì ghi log chứ không chặn xóa bản ghi.
       try {
         await fs.unlink(path.join(env.uploadDir, attachment.storagePath));
       } catch (error) {

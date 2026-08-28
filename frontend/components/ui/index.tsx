@@ -260,8 +260,11 @@ export function Field({
   full?: boolean;
   children: ReactNode;
 }) {
+  // Dùng thẻ <label> bọc ngoài để nhãn gắn thật vào ô nhập bên trong: trình đọc
+  // màn hình đọc đúng tên trường và bấm vào nhãn thì con trỏ nhảy vào ô.
+  // Cách này không cần đặt id cho từng ô nên áp dụng được cho mọi biểu mẫu.
   return (
-    <div className={cx(full && 'full')}>
+    <label className={cx('block', full && 'full')}>
       {label ? (
         <span className={cx('field-label', required && 'field-label-required')}>{label}</span>
       ) : null}
@@ -271,7 +274,7 @@ export function Field({
       ) : hint ? (
         <span className="field-hint">{hint}</span>
       ) : null}
-    </div>
+    </label>
   );
 }
 

@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { addDays, localISO, toDbDate, today } from '../../lib/dates';
 import { asyncHandler, ok, parseOrThrow } from '../../lib/http';
 import { prisma } from '../../lib/prisma';
-import { requireAuth } from '../../middleware/auth';
+import { buildSearchText, escapeLike, normalizeText } from '../../lib/text';
+import { requireAuth, requireWrite } from '../../middleware/auth';
 import { buildDashboard, collectReportData, type AnalyticsScope } from './analytics.service';
 import { QUICK_PROMPTS, answerQuestion } from './assistant.service';
 
@@ -67,15 +68,23 @@ analyticsRouter.get(
       req.query,
     );
 
-    const like = { contains: q, mode: 'insensitive' as const };
+    // `%` và `_` do người dùng gõ phải là ký tự thường, không phải ký tự đại diện.
+    const like = { contains: escapeLike(q), mode: 'insensitive' as const };
     const base = { deletedAt: null, schoolYearId: yearId };
     const take = 8;
+
+    // Hồ sơ tra trên cột search_text đã bỏ dấu — giống hệt trang Hồ sơ, để cùng
+    // một từ khóa không cho hai kết quả khác nhau ở hai chỗ.
+    const documentWhere = {
+      ...base,
+      searchText: { contains: escapeLike(normalizeText(q)) },
+    };
 
     const [tasks, activities, classes, documents, plans, events] = await Promise.all([
       prisma.task.findMany({ where: { ...base, title: like }, take }),
       prisma.activity.findMany({ where: { ...base, name: like }, take }),
       prisma.class.findMany({ where: { ...base, className: like }, take }),
-      prisma.document.findMany({ where: { ...base, name: like }, take }),
+      prisma.document.findMany({ where: documentWhere, take }),
       prisma.plan.findMany({ where: { ...base, name: like }, take }),
       prisma.calendarEvent.findMany({ where: { ...base, title: like }, take }),
     ]);
@@ -111,6 +120,9 @@ analyticsRouter.post(
 // ── Ghi nhận nhanh: lưu vào hồ sơ, KHÔNG tác động điểm thi đua ─────────────
 analyticsRouter.post(
   '/quick-note',
+  // Ghi nhận nhanh tạo bản ghi hồ sơ thật, nên phải chặn tài khoản chỉ xem
+  // đúng như mọi điểm cuối ghi khác.
+  requireWrite,
   asyncHandler(async (req, res) => {
     const body = parseOrThrow(
       z.object({
@@ -138,7 +150,9 @@ analyticsRouter.post(
         date: toDbDate(today()),
         description: body.description,
         status: 'DRAFT',
-        searchText: `${name} ${body.description}`.toLowerCase(),
+        // Phải dùng buildSearchText như mọi đường ghi hồ sơ khác. Chỉ toLowerCase()
+        // thì ghi nhận nhanh sẽ không hiện ra khi tìm bỏ dấu ở trang Hồ sơ.
+        searchText: buildSearchText(name, body.description, body.type, body.subject),
       },
     });
 

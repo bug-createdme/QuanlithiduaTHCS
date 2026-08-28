@@ -11,8 +11,23 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api, setAccessToken, setUnauthorizedHandler } from '@/services/api';
+import { ApiError, api, setAccessToken, setUnauthorizedHandler } from '@/services/api';
 import type { CurrentUser } from '@/types';
+
+/**
+ * Phân biệt "phiên đã mất" với "gọi hỏng tạm thời".
+ * Chỉ 401 nghĩa là refresh token không còn hiệu lực. Mất mạng (status 0) hay
+ * 429/5xx chỉ là trục trặc nhất thời và không được phép hủy phiên đang hợp lệ.
+ */
+function isSessionGone(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401;
+}
+
+/** Giây chờ trước khi thử làm mới lại sau một lỗi tạm thời. */
+const RETRY_AFTER_SECONDS = 90;
+
+/** Số lần thử khôi phục phiên lúc tải trang trước khi coi như chưa đăng nhập. */
+const RESTORE_ATTEMPTS = 3;
 
 interface LoginResponse {
   accessToken: string;
@@ -66,9 +81,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAccessToken(data.accessToken);
           setUser(data.user);
           scheduleRefresh(data.expiresIn);
-        } catch {
-          setAccessToken(null);
-          setUser(null);
+        } catch (error) {
+          // Chỉ 401 mới có nghĩa phiên đã mất thật. Mất mạng hay bị giới hạn
+          // tần suất chỉ là trục trặc tạm thời — giữ phiên và thử lại,
+          // đừng đá người dùng ra màn hình đăng nhập giữa chừng.
+          if (isSessionGone(error)) {
+            setAccessToken(null);
+            setUser(null);
+          } else {
+            scheduleRefresh(RETRY_AFTER_SECONDS);
+          }
         }
       }, delay);
     },
@@ -112,17 +134,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const data = await api.post<LoginResponse>('/auth/refresh');
-        if (cancelled) return;
-        setAccessToken(data.accessToken);
-        setUser(data.user);
-        scheduleRefresh(data.expiresIn);
-      } catch {
-        if (!cancelled) setUser(null);
-      } finally {
-        if (!cancelled) setLoading(false);
+      // Lỗi tạm thời (mất mạng, bị giới hạn tần suất) không phải là mất phiên,
+      // nên thử lại vài lần trước khi đưa người dùng về màn hình đăng nhập.
+      for (let attempt = 1; attempt <= RESTORE_ATTEMPTS && !cancelled; attempt += 1) {
+        try {
+          const data = await api.post<LoginResponse>('/auth/refresh');
+          if (cancelled) return;
+          setAccessToken(data.accessToken);
+          setUser(data.user);
+          scheduleRefresh(data.expiresIn);
+          break;
+        } catch (error) {
+          if (cancelled) return;
+          if (isSessionGone(error) || attempt === RESTORE_ATTEMPTS) {
+            setUser(null);
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, attempt * 1_500));
+        }
       }
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;

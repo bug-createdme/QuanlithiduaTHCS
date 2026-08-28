@@ -552,6 +552,11 @@ scoresRouter.post(
     const userId = currentUserId(req);
 
     if (body.type === 'delete') {
+      // Hoàn tác cũng là một thao tác ghi: phải đi qua đúng cửa khóa bảng như
+      // PUT /entries và /entries/paste, nếu không sẽ xóa được ô của bảng đã khóa.
+      const target = await prisma.scoreEntry.findFirst({ where: { id: body.id } });
+      if (!target) throw notFound('Ô điểm');
+      await assertSheetWritable(target.sheetId);
       await prisma.scoreEntry.deleteMany({ where: { id: body.id } });
     } else {
       const row = body.row as Record<string, unknown>;

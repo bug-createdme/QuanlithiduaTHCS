@@ -6,7 +6,7 @@ import { notFound, revisionConflict } from './errors';
 import { asyncHandler, created, noContent, ok, paginationSchema, parseOrThrow, toPageMeta } from './http';
 import { prisma } from './prisma';
 import { parseScope, scopeWhere, type ScopeWhereOptions } from './scope';
-import { normalizeText, toCsv } from './text';
+import { escapeLike, normalizeText, toCsv } from './text';
 import { currentUserId, requireAuth, requireWrite } from '../middleware/auth';
 
 /** Tên model Prisma dùng được với `prisma[name]`. */
@@ -93,9 +93,10 @@ export function createCrudRouter<TCreate extends z.ZodTypeAny, TUpdate extends z
     if (where.AND) and.push(...(where.AND as unknown[]));
 
     if (query.q && options.searchFields?.length) {
+      const needle = escapeLike(query.q);
       and.push({
         OR: options.searchFields.map((field) => ({
-          [field]: { contains: query.q, mode: 'insensitive' },
+          [field]: { contains: needle, mode: 'insensitive' },
         })),
       });
     }

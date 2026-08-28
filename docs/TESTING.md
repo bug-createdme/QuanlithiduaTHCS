@@ -1,13 +1,13 @@
 # Kiểm thử tự động
 
-**356 bài kiểm thử** chạy trong khoảng 15 giây.
+**388 bài kiểm thử** chạy trong khoảng 15 giây.
 
 | Nhóm | Số bài | Cần PostgreSQL? |
 |---|---|---|
 | Backend — unit | 87 | Không |
-| Backend — integration | 222 | Có |
+| Backend — integration | 254 | Có |
 | Frontend — unit | 47 | Không |
-| **Tổng** | **356** | |
+| **Tổng** | **388** | |
 
 ---
 

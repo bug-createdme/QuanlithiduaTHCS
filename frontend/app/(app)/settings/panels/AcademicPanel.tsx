@@ -3,6 +3,7 @@
 import { Building2, CalendarPlus, Lock, Plus } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/hooks/useAuth';
 import { useScope } from '@/hooks/useScope';
 import { useToast } from '@/hooks/useToast';
 import { fmtDate } from '@/lib/format';
@@ -29,6 +30,10 @@ import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 export function AcademicPanel() {
   const scope = useScope();
   const { toast, toastError } = useToast();
+  const { user } = useAuth();
+
+  /** Đóng năm học là thao tác toàn cục, máy chủ chỉ cho ADMIN. */
+  const isAdmin = user?.role === 'ADMIN';
 
   const campusesQuery = useApiQuery<Campus[]>('/academic/campuses');
   const yearsQuery = useApiQuery<SchoolYear[]>('/academic/years');
@@ -299,7 +304,12 @@ export function AcademicPanel() {
                           <LinkButton onClick={() => void setCurrent(year)}>Đặt hiện hành</LinkButton>
                         ) : null}
                         {year.status !== 'ARCHIVED' ? (
-                          <LinkButton tone="red" onClick={() => void startClose(year)}>
+                          <LinkButton
+                            tone="red"
+                            disabled={!isAdmin}
+                            title={isAdmin ? undefined : 'Chỉ quản trị viên được đóng năm học'}
+                            onClick={() => void startClose(year)}
+                          >
                             Đóng năm
                           </LinkButton>
                         ) : null}

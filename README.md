@@ -307,7 +307,7 @@ PostgreSQL cài sẵn trên máy. Đổi bằng `POSTGRES_PORT` trong `.env` ở
 
 ## Kiểm thử
 
-**356 bài kiểm thử tự động**, chạy khoảng 15 giây.
+**388 bài kiểm thử tự động**, chạy khoảng 15 giây.
 
 ```bash
 npm test
@@ -315,9 +315,9 @@ npm test
 
 | Lệnh | Nội dung |
 |---|---|
-| `npm test` | Toàn bộ 356 bài (backend 309 + frontend 47) |
+| `npm test` | Toàn bộ 388 bài (backend 341 + frontend 47) |
 | `npm run test:unit` | 134 bài logic thuần, **không cần cơ sở dữ liệu** |
-| `npm run test:integration` | 222 bài gọi API thật |
+| `npm run test:integration` | 254 bài gọi API thật |
 | `npm run test:backend` / `npm run test:frontend` | Chạy riêng từng bên |
 | `npm run test:coverage` | Đo độ phủ mã backend |
 | `npm run verify` | typecheck → lint → test → build |
@@ -325,7 +325,7 @@ npm test
 | Nhóm | Số bài | Cần PostgreSQL? |
 |---|---|---|
 | Backend — unit | 87 | Không |
-| Backend — integration | 222 | Có |
+| Backend — integration | 254 | Có |
 | Frontend — unit | 47 | Không |
 
 > Integration test dùng **database riêng** `tpt_doi_thcs_test`, tự tạo và tự dọn.
@@ -445,7 +445,7 @@ và *Ghi chú nhanh* vẫn lưu vào hồ sơ thay vì bảng riêng — đúng 
 
 ## Hạn chế đã biết
 
-1. **Chưa có kiểm thử giao diện ở mức component.** Đã có 356 bài kiểm thử cho nghiệp vụ và API (xem [Kiểm thử](#kiểm-thử)), nhưng chưa có test render component React hay test đầu-cuối trên trình duyệt.
+1. **Chưa có kiểm thử giao diện ở mức component.** Đã có 388 bài kiểm thử cho nghiệp vụ và API (xem [Kiểm thử](#kiểm-thử)), nhưng chưa có test render component React hay test đầu-cuối trên trình duyệt.
 2. **Chưa có màn hình quản lý người dùng.** Lược đồ đã hỗ trợ ba vai trò `ADMIN`/`EDITOR`/`VIEWER` và API đã kiểm tra quyền, nhưng việc tạo tài khoản mới hiện phải làm qua `prisma studio`.
 3. **Sáu bảng dựng sẵn chưa có giao diện:** `plan_targets`, `task_dependencies`, `score_evidence`, `equipment_transactions`, `training_records`, `homeroom_teachers`. Bản gốc cũng chưa có màn hình cho các phần này.
 4. **Phục hồi dữ liệu là thao tác ghi đè toàn cục.** Có tạo điểm khôi phục bảo vệ trước khi ghi, nhưng chưa có chế độ hợp nhất theo từng trường.

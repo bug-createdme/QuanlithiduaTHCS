@@ -175,6 +175,9 @@ function AppearancePanel({
 /** Tab 13 — Dữ liệu, giới hạn tệp và ngưỡng cảnh báo. */
 function DataPanel({ settings, onSaved }: { settings: AppSettings; onSaved: () => void }) {
   const { toast, toastError } = useToast();
+  const { user } = useAuth();
+  /** Xóa dữ liệu mẫu là thao tác toàn cục, máy chủ chỉ cho ADMIN. */
+  const isAdmin = user?.role === 'ADMIN';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [maxFileMb, setMaxFileMb] = useState(String(settings.max_file_mb ?? 25));
   const [low, setLow] = useState(String(settings.storage_warning_low ?? 70));
@@ -287,6 +290,8 @@ function DataPanel({ settings, onSaved }: { settings: AppSettings; onSaved: () =
                 <Button
                   variant="danger"
                   icon={<Trash2 size={15} aria-hidden />}
+                  disabled={!isAdmin}
+                  title={isAdmin ? undefined : 'Chỉ quản trị viên được xóa dữ liệu mẫu'}
                   onClick={() => setSampleOpen(true)}
                 >
                   Xóa dữ liệu mẫu

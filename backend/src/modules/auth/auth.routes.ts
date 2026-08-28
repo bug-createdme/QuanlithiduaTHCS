@@ -38,7 +38,10 @@ const autoLockSchema = z.object({
   }),
 });
 
-/** Giới hạn riêng, chặt hơn cho các điểm cuối xác thực. */
+/**
+ * Giới hạn riêng, chặt hơn cho các điểm cuối ĐOÁN MẬT KHẨU
+ * (đăng nhập, đổi mật khẩu). Mục tiêu là chặn dò mật khẩu.
+ */
 const authLimiter = rateLimit({
   windowMs: env.RATE_LIMIT_WINDOW_MS,
   limit: env.AUTH_RATE_LIMIT_MAX,
@@ -46,6 +49,27 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: {
     error: { code: 'RATE_LIMITED', message: 'Quá nhiều lần thử. Hãy đợi một phút rồi thao tác lại.' },
+  },
+});
+
+/**
+ * `/refresh` KHÔNG dùng chung giới hạn với `/login`.
+ *
+ * Mỗi lần tải lại trang, mở tab mới hay khôi phục phiên đều gọi `/refresh` một
+ * lần. Dùng chung mức 10 lần/phút của `/login` khiến cả trường — vốn đi chung
+ * một địa chỉ IP sau NAT — bị đá về màn hình đăng nhập chỉ vì vài lần F5.
+ *
+ * Điểm cuối này không đoán được: refresh token là 48 byte ngẫu nhiên trong
+ * cookie HttpOnly và bị xoay vòng sau mỗi lần dùng. Vì vậy chỉ cần một mức
+ * trần rộng để chặn vòng lặp hỏng, không cần mức chống dò mật khẩu.
+ */
+const refreshLimiter = rateLimit({
+  windowMs: env.RATE_LIMIT_WINDOW_MS,
+  limit: Math.max(env.AUTH_RATE_LIMIT_MAX * 12, 120),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: {
+    error: { code: 'RATE_LIMITED', message: 'Quá nhiều yêu cầu làm mới phiên. Hãy thử lại sau ít phút.' },
   },
 });
 
@@ -79,7 +103,7 @@ authRouter.post(
 
 authRouter.post(
   '/refresh',
-  authLimiter,
+  refreshLimiter,
   asyncHandler(async (req, res) => {
     const token =
       (req.cookies?.[REFRESH_COOKIE] as string | undefined) ??

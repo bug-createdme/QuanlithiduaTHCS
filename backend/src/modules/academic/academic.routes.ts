@@ -7,7 +7,7 @@ import { businessRule, conflict, notFound } from '../../lib/errors';
 import { asyncHandler, created, noContent, ok, parseOrThrow } from '../../lib/http';
 import { prisma } from '../../lib/prisma';
 import { compareVietnamese, normalizeText } from '../../lib/text';
-import { currentUserId, requireAuth, requireWrite } from '../../middleware/auth';
+import { currentUserId, requireAuth, requireRole, requireWrite } from '../../middleware/auth';
 import { optionalText } from '../entities/entity.schemas';
 import { createSnapshot } from '../backup/snapshot.service';
 
@@ -462,7 +462,9 @@ academicRouter.get(
 
 academicRouter.post(
   '/years/:id/close',
-  requireWrite,
+  // Đóng năm học đặt toàn bộ năm sang chỉ đọc và rất khó đảo ngược — xếp cùng
+  // nhóm với phục hồi sao lưu và khôi phục điểm khôi phục, chỉ ADMIN được làm.
+  requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     const { id } = parseOrThrow(idSchema, req.params);
     const { reason } = parseOrThrow(
