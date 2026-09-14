@@ -44,3 +44,6 @@ desktop.ini
 # ---- Kiểm thử ----
 coverage/
 backend/tests/.uploads/
+
+#---- Antigravity Kit ---
+.agents/
