@@ -4,6 +4,7 @@ import { Download, Trash2, Upload } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
+import { useConfirm } from '@/hooks/useConfirm';
 import { useScope } from '@/hooks/useScope';
 import { useToast } from '@/hooks/useToast';
 import { cx } from '@/lib/format';
@@ -29,6 +30,7 @@ import {
 import { ConfirmDialog } from '@/components/ui/Modal';
 import { AcademicPanel } from './panels/AcademicPanel';
 import { ClassPanel } from './panels/ClassPanel';
+import { HomeroomTeacherPanel } from './panels/HomeroomTeacherPanel';
 import { ConfigCategoryPanel } from './panels/ConfigCategoryPanel';
 import { CustomFieldPanel } from './panels/CustomFieldPanel';
 
@@ -228,14 +230,32 @@ function DataPanel({ settings, onSaved }: { settings: AppSettings; onSaved: () =
     }
   };
 
-  const exportConfig = () => void api.download('/config/export', undefined, 'cau-hinh.json');
+  const confirm = useConfirm();
+
+  const exportConfig = async () => {
+    try {
+      await api.download('/config/export', undefined, 'cau-hinh.json');
+      toast('Đã xuất và tải tệp cấu hình.');
+    } catch (err) {
+      toastError(err);
+    }
+  };
 
   const importConfig = async (file: File) => {
+    const ok = await confirm({
+      title: 'Nhập cấu hình',
+      description:
+        'Nhập tệp cấu hình này sẽ ghi đè và bổ sung các danh mục, trường tùy chỉnh hiện có. Bạn có chắc muốn tiếp tục?',
+      confirmLabel: 'Nhập cấu hình',
+      tone: 'primary',
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       const payload = JSON.parse(await file.text()) as Record<string, unknown>;
       const result = await api.post<{ imported: number }>('/config/import', payload);
       toast(`Đã nhập ${result.imported} mục cấu hình`);
+      onSaved();
     } catch (err) {
       toastError(err);
     } finally {
@@ -359,7 +379,7 @@ function DataPanel({ settings, onSaved }: { settings: AppSettings; onSaved: () =
 
 /** Tab 14 — Khóa phiên và tài khoản. */
 function SecurityPanel() {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { toast, toastError } = useToast();
   const [minutes, setMinutes] = useState(String(user?.autoLockMinutes ?? 10));
   const [busy, setBusy] = useState(false);
@@ -395,7 +415,6 @@ function SecurityPanel() {
             <Button variant="primary" loading={busy} onClick={() => void save()}>
               Lưu thời gian
             </Button>
-            <Button onClick={() => void logout()}>Đăng xuất</Button>
           </div>
           <Notice className="mt-3">
             Khác với bản cũ, mật khẩu nay được băm bcrypt và kiểm tra ở máy chủ. Mã nguồn giao diện
@@ -442,7 +461,15 @@ export default function SettingsPage() {
         </>
       );
     }
-    if (tab === 'classes') return <ClassPanel />;
+    if (tab === 'classes')
+      return (
+        <>
+          <ClassPanel />
+          <div className="mt-3">
+            <HomeroomTeacherPanel />
+          </div>
+        </>
+      );
     if (tab === 'competition') {
       return (
         <Card>
@@ -485,7 +512,7 @@ export default function SettingsPage() {
     );
   }, [tab, settingsQuery]);
 
-  if (!scope.ready || settingsQuery.loading) return <LoadingState />;
+  if (!scope.ready || (settingsQuery.loading && !settingsQuery.data)) return <LoadingState />;
 
   return (
     <>

@@ -4,6 +4,7 @@ import { Building2, CalendarPlus, Lock, Plus } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
+import { useConfirm } from '@/hooks/useConfirm';
 import { useScope } from '@/hooks/useScope';
 import { useToast } from '@/hooks/useToast';
 import { fmtDate } from '@/lib/format';
@@ -31,6 +32,7 @@ export function AcademicPanel() {
   const scope = useScope();
   const { toast, toastError } = useToast();
   const { user } = useAuth();
+  const confirm = useConfirm();
 
   /** Đóng năm học là thao tác toàn cục, máy chủ chỉ cho ADMIN. */
   const isAdmin = user?.role === 'ADMIN';
@@ -127,6 +129,13 @@ export function AcademicPanel() {
   };
 
   const setCurrent = async (year: SchoolYear) => {
+    const ok = await confirm({
+      title: 'Đặt năm học hiện hành',
+      description: `Bạn có chắc muốn chuyển "${year.name}" thành năm học hiện hành không? Dữ liệu hiển thị mặc định trên toàn hệ thống sẽ chuyển sang năm học này.`,
+      confirmLabel: 'Đặt hiện hành',
+      tone: 'primary',
+    });
+    if (!ok) return;
     try {
       await api.post(`/academic/years/${year.id}/set-current`);
       toast(`Đã đặt ${year.name} làm năm học hiện hành`);

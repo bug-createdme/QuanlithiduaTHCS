@@ -1,10 +1,12 @@
 'use client';
 
-import { Database, Lock, Menu, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { Database, Lock, LogOut, Menu, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useConfirm } from '@/hooks/useConfirm';
 import { useScope } from '@/hooks/useScope';
+import { useToast } from '@/hooks/useToast';
 import { api } from '@/services/api';
 import type { SearchGroup } from '@/types';
 import { Button, IconButton, Select } from '@/components/ui';
@@ -34,8 +36,28 @@ export function Topbar({
   onQuickAdd: () => void;
 }) {
   const router = useRouter();
-  const { lock, secondsToLock } = useAuth();
+  const { lock, logout, secondsToLock } = useAuth();
+  const confirm = useConfirm();
+  const { toast } = useToast();
   const scope = useScope();
+
+  const handleLogout = useCallback(async () => {
+    const ok = await confirm({
+      title: 'Xác nhận đăng xuất',
+      description: 'Bạn có chắc chắn muốn kết thúc phiên làm việc và đăng xuất khỏi hệ thống không?',
+      confirmLabel: 'Đăng xuất',
+      cancelLabel: 'Ở lại',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    toast('Đã đăng xuất khỏi hệ thống.');
+    await logout();
+  }, [confirm, logout, toast]);
+
+  const handleLock = useCallback(() => {
+    toast('Đã khóa phiên làm việc.');
+    lock();
+  }, [lock, toast]);
   const [mobileContextOpen, setMobileContextOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [groups, setGroups] = useState<SearchGroup[]>([]);
@@ -168,7 +190,7 @@ export function Topbar({
         <SlidersHorizontal size={16} aria-hidden />
       </IconButton>
 
-      <div ref={boxRef} className="relative min-w-[120px] flex-1">
+      <div ref={boxRef} className="relative flex-1 min-w-[160px]">
         <Search
           size={15}
           className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted"
@@ -213,24 +235,37 @@ export function Topbar({
         ) : null}
       </div>
 
-      <Button variant="primary" icon={<Plus size={15} aria-hidden />} onClick={onQuickAdd}>
-        <span className="hidden md:inline">Thêm nhanh</span>
-      </Button>
+      <div className="flex shrink-0 items-center gap-2">
+        <Button variant="primary" icon={<Plus size={15} aria-hidden />} onClick={onQuickAdd}>
+          <span className="hidden md:inline">Thêm nhanh</span>
+        </Button>
 
-      <div className="flex items-center gap-2 lap:hidden">
-        <LockChip seconds={secondsToLock} />
-        <span
-          className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-blue/25 bg-blue-soft px-2 py-[2px] text-[11px] font-semibold text-blue"
-          title="Dữ liệu lưu tập trung trên PostgreSQL"
+        <div className="flex items-center gap-2 lap:hidden">
+          <LockChip seconds={secondsToLock} />
+          <span
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-blue/25 bg-blue-soft px-2 py-[2px] text-[11px] font-semibold text-blue"
+            title="Dữ liệu lưu tập trung trên PostgreSQL"
+          >
+            <Database size={12} aria-hidden />
+            PostgreSQL
+          </span>
+        </div>
+
+        <IconButton onClick={handleLock} title="Khóa ứng dụng" aria-label="Khóa ứng dụng">
+          <Lock size={15} aria-hidden />
+        </IconButton>
+
+        <button
+          type="button"
+          onClick={() => void handleLogout()}
+          title="Đăng xuất khỏi hệ thống"
+          aria-label="Đăng xuất"
+          className="inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-control border border-red/30 bg-red-soft px-2.5 text-[12.5px] font-semibold text-red transition-all hover:bg-red hover:text-white active:scale-95"
         >
-          <Database size={12} aria-hidden />
-          PostgreSQL
-        </span>
+          <LogOut size={15} aria-hidden />
+          <span className="hidden sm:inline">Đăng xuất</span>
+        </button>
       </div>
-
-      <IconButton onClick={lock} title="Khóa ứng dụng" aria-label="Khóa ứng dụng">
-        <Lock size={15} aria-hidden />
-      </IconButton>
 
       <Modal
         open={mobileContextOpen}

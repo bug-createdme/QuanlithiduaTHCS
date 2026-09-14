@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cx } from '@/lib/format';
@@ -38,12 +39,15 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           collapsed ? 'md:justify-center md:px-0' : 'md:justify-start md:px-3.5',
         )}
       >
-        <span
-          className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[9px] bg-white text-[17px] font-black text-blue"
-          aria-hidden
-        >
-          Đ
-        </span>
+        <div className="relative h-[36px] w-[36px] shrink-0 drop-shadow-sm">
+          <Image
+            src="/images/logo-thcs-le-ninh.png"
+            alt="Logo THCS Lệ Ninh"
+            width={36}
+            height={36}
+            className="h-full w-full object-contain"
+          />
+        </div>
         <span className={cx('hidden min-w-0', !collapsed && 'md:block')}>
           <strong className="block truncate text-[13px] leading-tight">TRỢ LÝ TỔNG PHỤ TRÁCH</strong>
           <span className="block truncate text-[10.5px] text-sidebar-dim">Công tác Đội THCS</span>

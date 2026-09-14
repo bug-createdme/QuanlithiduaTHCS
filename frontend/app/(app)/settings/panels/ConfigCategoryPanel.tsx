@@ -2,6 +2,7 @@
 
 import { ArrowDown, ArrowUp, Copy, Plus, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { normalizeText } from '@/lib/format';
 import { api } from '@/services/api';
@@ -60,6 +61,7 @@ function suggestCode(label: string): string {
  */
 export function ConfigCategoryPanel({ categoryKeys }: { categoryKeys: string[] }) {
   const { toast, toastError } = useToast();
+  const confirm = useConfirm();
   const [categories, setCategories] = useState<ConfigCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -139,17 +141,25 @@ export function ConfigCategoryPanel({ categoryKeys }: { categoryKeys: string[] }
   const move = async (item: ConfigItem, direction: 'up' | 'down') => {
     try {
       await api.post(`/config/items/${item.id}/move`, { direction });
+      toast(`Đã di chuyển "${item.label}" ${direction === 'up' ? 'lên trên' : 'xuống dưới'}.`);
       await load();
     } catch (err) {
       toastError(err);
     }
   };
 
-  const restoreDefaults = async (key: string) => {
+  const restoreDefaults = async (category: ConfigCategory) => {
+    const ok = await confirm({
+      title: 'Khôi phục danh mục mẫu',
+      description: `Bạn có chắc muốn khôi phục các mục mẫu cho danh mục "${category.name}"? Các mục mặc định bị thiếu sẽ được tạo lại.`,
+      confirmLabel: 'Khôi phục',
+      tone: 'warn',
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       const result = await api.post<{ restored: number }>(
-        `/config/categories/${key}/restore-defaults`,
+        `/config/categories/${category.key}/restore-defaults`,
       );
       toast(`Đã khôi phục ${result.restored} mục mẫu`);
       await load();
@@ -210,7 +220,7 @@ export function ConfigCategoryPanel({ categoryKeys }: { categoryKeys: string[] }
                   size="sm"
                   icon={<RotateCcw size={14} aria-hidden />}
                   loading={busy}
-                  onClick={() => void restoreDefaults(category.key)}
+                  onClick={() => void restoreDefaults(category)}
                 >
                   Khôi phục mẫu
                 </Button>

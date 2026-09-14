@@ -304,7 +304,16 @@ export default function TodayPage() {
         open={finishOpen}
         title="Kết thúc ngày"
         onClose={() => setFinishOpen(false)}
-        footer={<Button onClick={() => setFinishOpen(false)}>Đóng</Button>}
+        footer={
+          <Button
+            onClick={() => {
+              setFinishOpen(false);
+              toast('Đã tổng kết công việc trong ngày.');
+            }}
+          >
+            Đóng
+          </Button>
+        }
       >
         <p className="m-0 flex items-center gap-2 text-[13px]">
           <CheckCircle2 size={16} className="text-green" aria-hidden />

@@ -21,7 +21,7 @@ import {
   TextArea,
   TextInput,
 } from '@/components/ui';
-import { Modal } from '@/components/ui/Modal';
+import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 
 const FIELD_TYPE_LABEL: Record<CustomFieldType, string> = {
   SHORT_TEXT: 'Văn bản ngắn',
@@ -72,6 +72,7 @@ export function CustomFieldPanel({ entity }: { entity: string }) {
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingField, setDeletingField] = useState<CustomFieldDefinition | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
 
   const load = useCallback(async () => {
@@ -118,9 +119,27 @@ export function CustomFieldPanel({ entity }: { entity: string }) {
     }
   };
 
+  const deleteField = async () => {
+    if (!deletingField) return;
+    setBusy(true);
+    try {
+      await api.delete(`/settings/custom-fields/${deletingField.id}`);
+      toast(`Đã xóa trường "${deletingField.name}"`);
+      setDeletingField(null);
+      await load();
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const toggle = async (definition: CustomFieldDefinition) => {
     try {
       await api.patch(`/settings/custom-fields/${definition.id}`, { active: !definition.active });
+      toast(
+        definition.active ? 'Đã ngừng sử dụng trường thông tin' : 'Đã kích hoạt trường thông tin',
+      );
       await load();
     } catch (err) {
       toastError(err);
@@ -162,7 +181,7 @@ export function CustomFieldPanel({ entity }: { entity: string }) {
                 <th>Kiểu</th>
                 <th>Bắt buộc</th>
                 <th>Trạng thái</th>
-                <th className="w-[130px]" />
+                <th className="w-[180px]">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -203,6 +222,9 @@ export function CustomFieldPanel({ entity }: { entity: string }) {
                         </LinkButton>
                         <LinkButton onClick={() => void toggle(definition)}>
                           {definition.active ? 'Ngừng' : 'Bật'}
+                        </LinkButton>
+                        <LinkButton tone="red" onClick={() => setDeletingField(definition)}>
+                          Xóa
                         </LinkButton>
                       </div>
                     </td>
@@ -291,6 +313,26 @@ export function CustomFieldPanel({ entity }: { entity: string }) {
           </label>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={deletingField !== null}
+        title="Xóa trường tùy chỉnh"
+        loading={busy}
+        confirmLabel="Xóa trường"
+        description={
+          <>
+            <Notice tone="warn" className="mb-2">
+              Chỉ xóa được trường chưa phát sinh dữ liệu trong các bản ghi. Nếu trường đã được lưu
+              giá trị, hãy chọn &ldquo;Ngừng&rdquo; để bảo toàn lịch sử.
+            </Notice>
+            <p className="m-0">
+              Bạn có chắc chắn muốn xóa trường <strong>{deletingField?.name}</strong>?
+            </p>
+          </>
+        }
+        onCancel={() => setDeletingField(null)}
+        onConfirm={() => void deleteField()}
+      />
     </>
   );
 }

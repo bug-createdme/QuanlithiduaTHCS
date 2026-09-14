@@ -126,6 +126,15 @@ function DocumentsPageInner() {
     return () => document.removeEventListener('paste', onPaste);
   }, [uploadFiles]);
 
+  const downloadAttachment = async (attachmentId: string, fileName: string) => {
+    try {
+      await api.download(`/documents/attachments/${attachmentId}/download`, undefined, fileName);
+      toast(`Đang tải tệp: ${fileName}`);
+    } catch (err) {
+      toastError(err);
+    }
+  };
+
   const createFolder = async () => {
     if (!folderName.trim()) {
       toast('Hãy nhập tên thư mục.', 'bad');
@@ -192,6 +201,7 @@ function DocumentsPageInner() {
   const togglePin = async (doc: DocumentRecord) => {
     try {
       await api.post(`/documents/${doc.id}/pin`, { pinned: !doc.pinned });
+      toast(doc.pinned ? 'Đã bỏ ghim tài liệu' : 'Đã ghim tài liệu lên đầu');
       void docsQuery.refetch();
     } catch (err) {
       toastError(err);
@@ -375,13 +385,7 @@ function DocumentsPageInner() {
                         <>
                           {attachment ? (
                             <LinkButton
-                              onClick={() =>
-                                void api.download(
-                                  `/documents/attachments/${attachment.id}/download`,
-                                  undefined,
-                                  attachment.fileName,
-                                )
-                              }
+                              onClick={() => void downloadAttachment(attachment.id, attachment.fileName)}
                             >
                               Tải về
                             </LinkButton>
@@ -443,13 +447,7 @@ function DocumentsPageInner() {
                               <>
                                 {attachment ? (
                                   <LinkButton
-                                    onClick={() =>
-                                      void api.download(
-                                        `/documents/attachments/${attachment.id}/download`,
-                                        undefined,
-                                        attachment.fileName,
-                                      )
-                                    }
+                                    onClick={() => void downloadAttachment(attachment.id, attachment.fileName)}
                                   >
                                     Tải về
                                   </LinkButton>

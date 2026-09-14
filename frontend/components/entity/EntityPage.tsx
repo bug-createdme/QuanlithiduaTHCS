@@ -2,7 +2,7 @@
 
 import { Download, Plus } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useApiList, useDebounced } from '@/hooks/useApiQuery';
 import { useScope } from '@/hooks/useScope';
 import { useToast } from '@/hooks/useToast';
@@ -25,11 +25,23 @@ import {
   TextInput,
   Toolbar,
 } from '@/components/ui';
-import { ConfirmDialog } from '@/components/ui/Modal';
+import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { EntityForm } from './EntityForm';
 import type { EntityConfig } from './entity.config';
 
 type Row = BaseRecord & Record<string, unknown>;
+
+/**
+ * Ngăn chi tiết mở từ một dòng — dùng cho các bảng con treo dưới bản ghi
+ * (chỉ tiêu của kế hoạch, sổ mượn–trả của thiết bị, buổi bồi dưỡng của
+ * thành viên). Trang nào không khai báo thì bảng vẫn y như cũ.
+ */
+export interface RowDetail {
+  /** Nhãn nút mở ngăn, ví dụ 'Chỉ tiêu'. */
+  label: string;
+  title: (row: Row) => string;
+  render: (row: Row) => ReactNode;
+}
 
 const PAGE_SIZE = 50;
 
@@ -37,7 +49,7 @@ const PAGE_SIZE = 50;
  * Trang danh sách dùng chung cho 6 thực thể — tương ứng renderEntity() của bản gốc.
  * Khác biệt: tìm kiếm, lọc và phân trang chạy ở server thay vì duyệt mảng ở client.
  */
-export function EntityPage({ config }: { config: EntityConfig }) {
+export function EntityPage({ config, rowDetail }: { config: EntityConfig; rowDetail?: RowDetail }) {
   const scope = useScope();
   const { toast, toastError } = useToast();
   const searchParams = useSearchParams();
@@ -49,6 +61,7 @@ export function EntityPage({ config }: { config: EntityConfig }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Row | null>(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
+  const [detailRow, setDetailRow] = useState<Row | null>(null);
 
   const debouncedSearch = useDebounced(search, 200);
 
@@ -174,7 +187,7 @@ export function EntityPage({ config }: { config: EntityConfig }) {
                 {config.columns.map((column) => (
                   <th key={column.key}>{column.label}</th>
                 ))}
-                <th className="w-[130px]">Thao tác</th>
+                <th className={rowDetail ? 'w-[210px]' : 'w-[130px]'}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -191,7 +204,7 @@ export function EntityPage({ config }: { config: EntityConfig }) {
                       </td>
                     ))}
                     <td>
-                      <div className="flex gap-2.5">
+                      <div className="flex flex-wrap gap-2.5">
                         <LinkButton
                           onClick={() => {
                             setEditingId(row.id);
@@ -200,6 +213,9 @@ export function EntityPage({ config }: { config: EntityConfig }) {
                         >
                           Sửa
                         </LinkButton>
+                        {rowDetail ? (
+                          <LinkButton onClick={() => setDetailRow(row)}>{rowDetail.label}</LinkButton>
+                        ) : null}
                         <LinkButton tone="red" onClick={() => setDeleting(row)}>
                           Xóa
                         </LinkButton>
@@ -255,6 +271,18 @@ export function EntityPage({ config }: { config: EntityConfig }) {
         onCancel={() => setDeleting(null)}
         onConfirm={() => void handleDelete()}
       />
+
+      {rowDetail && detailRow ? (
+        <Modal
+          open
+          wide
+          title={rowDetail.title(detailRow)}
+          onClose={() => setDetailRow(null)}
+          footer={<Button onClick={() => setDetailRow(null)}>Đóng</Button>}
+        >
+          {rowDetail.render(detailRow)}
+        </Modal>
+      ) : null}
     </>
   );
 }

@@ -164,6 +164,15 @@ export default function ReportsPage() {
     }
   }, [scope.yearId, toast, toastError]);
 
+  const exportCsv = useCallback(async () => {
+    try {
+      await api.download('/reports/export/csv', { ...scope.query, type }, 'bao-cao.csv');
+      toast('Đã xuất báo cáo ra CSV');
+    } catch (err) {
+      toastError(err);
+    }
+  }, [scope.query, type, toast, toastError]);
+
   const changePaper = (value: 'landscape' | 'portrait') => {
     setPaper(value);
     document.body.dataset.paper = value;
@@ -183,9 +192,7 @@ export default function ReportsPage() {
             </Button>
             <Button
               icon={<Download size={15} aria-hidden />}
-              onClick={() =>
-                void api.download('/reports/export/csv', { ...scope.query, type }, 'bao-cao.csv')
-              }
+              onClick={() => void exportCsv()}
             >
               Xuất CSV
             </Button>

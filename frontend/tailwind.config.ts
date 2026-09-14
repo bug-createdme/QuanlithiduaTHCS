@@ -5,7 +5,16 @@ import type { Config } from 'tailwindcss';
  * Không sáng tạo lại màu sắc hay khoảng cách — mục tiêu là giống bản gốc nhất có thể.
  */
 const config: Config = {
-  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
+  /**
+   * Phải quét cả `hooks/` — ToastProvider (và các provider dùng chung khác)
+   * đặt ở đó. Thiếu đường dẫn này Tailwind không sinh CSS cho toast:
+   * mất cả top-5/right-5/z-[99999] lẫn nền, viền và animation.
+   */
+  content: [
+    './app/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './hooks/**/*.{ts,tsx}',
+  ],
   theme: {
     /**
      * Khai báo ở cấp `theme` (không phải `theme.extend`) để THAY THẾ hoàn toàn
@@ -101,8 +110,12 @@ const config: Config = {
       },
       keyframes: {
         'toast-in': {
-          from: { opacity: '0', transform: 'translateY(8px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
+          from: { opacity: '0', transform: 'translateY(-12px) scale(0.96)' },
+          to: { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        'toast-timer': {
+          from: { width: '100%' },
+          to: { width: '0%' },
         },
         'modal-in': {
           from: { opacity: '0', transform: 'translateY(12px) scale(0.98)' },
@@ -114,7 +127,8 @@ const config: Config = {
         },
       },
       animation: {
-        'toast-in': 'toast-in 180ms ease-out',
+        'toast-in': 'toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'toast-timer': 'toast-timer 4500ms linear forwards',
         'modal-in': 'modal-in 160ms ease-out',
         'fade-in': 'fade-in 120ms ease-out',
       },

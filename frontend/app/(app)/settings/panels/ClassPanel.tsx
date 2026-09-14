@@ -3,6 +3,7 @@
 import { FileUp, Plus } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useConfirm } from '@/hooks/useConfirm';
 import { useScope } from '@/hooks/useScope';
 import { useToast } from '@/hooks/useToast';
 import { api } from '@/services/api';
@@ -25,7 +26,7 @@ import {
   TextInput,
   Toolbar,
 } from '@/components/ui';
-import { Modal } from '@/components/ui/Modal';
+import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 
 interface ImportRow {
   code?: string;
@@ -59,6 +60,7 @@ function parseDelimited(line: string, delimiter: string): string[] {
 export function ClassPanel() {
   const scope = useScope();
   const { toast, toastError } = useToast();
+  const confirm = useConfirm();
 
   const { data, loading, refetch } = useApiQuery<SchoolClass[]>(
     scope.yearId ? '/academic/classes' : null,
@@ -68,6 +70,7 @@ export function ClassPanel() {
   const [busy, setBusy] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingClass, setDeletingClass] = useState<SchoolClass | null>(null);
   const [form, setForm] = useState({
     className: '',
     grade: '6',
@@ -104,6 +107,21 @@ export function ClassPanel() {
     }
   };
 
+  const deleteClass = async () => {
+    if (!deletingClass) return;
+    setBusy(true);
+    try {
+      await api.delete(`/academic/classes/${deletingClass.id}`);
+      toast(`Đã xóa lớp ${deletingClass.className}`);
+      setDeletingClass(null);
+      void refetch();
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /** Phân tích dữ liệu dán từ Excel: mã lớp, tên lớp, khối, mã cơ sở, GVCN. */
   const buildPreview = useCallback(() => {
     const text = importText.trim();
@@ -129,10 +147,20 @@ export function ClassPanel() {
       })),
     );
     setImportErrors([]);
+    toast(`Đã phân tích ${rows.length} lớp học từ dữ liệu dán. Sẵn sàng nhập.`, 'info');
   }, [importText, toast]);
 
   const commitImport = async (dryRun: boolean) => {
     if (!preview?.length) return;
+    if (!dryRun) {
+      const ok = await confirm({
+        title: 'Nhập danh sách lớp',
+        description: `Bạn có chắc muốn nhập ${preview.length} lớp học vào năm học hiện tại không?`,
+        confirmLabel: 'Nhập lớp',
+        tone: 'primary',
+      });
+      if (!ok) return;
+    }
     setBusy(true);
     try {
       const result = await api.post<{
@@ -210,7 +238,7 @@ export function ClassPanel() {
                 <th>Cơ sở</th>
                 <th>Giáo viên chủ nhiệm</th>
                 <th>Trạng thái</th>
-                <th className="w-[80px]" />
+                <th className="w-[120px]">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -233,21 +261,26 @@ export function ClassPanel() {
                       )}
                     </td>
                     <td>
-                      <LinkButton
-                        onClick={() => {
-                          setEditingId(cls.id);
-                          setForm({
-                            className: cls.className,
-                            grade: String(cls.grade),
-                            campusId: cls.campusId,
-                            teacher: cls.teacher ?? '',
-                            active: cls.active,
-                          });
-                          setFormOpen(true);
-                        }}
-                      >
-                        Sửa
-                      </LinkButton>
+                      <div className="flex gap-2">
+                        <LinkButton
+                          onClick={() => {
+                            setEditingId(cls.id);
+                            setForm({
+                              className: cls.className,
+                              grade: String(cls.grade),
+                              campusId: cls.campusId,
+                              teacher: cls.teacher ?? '',
+                              active: cls.active,
+                            });
+                            setFormOpen(true);
+                          }}
+                        >
+                          Sửa
+                        </LinkButton>
+                        <LinkButton tone="red" onClick={() => setDeletingClass(cls)}>
+                          Xóa
+                        </LinkButton>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -396,6 +429,26 @@ export function ClassPanel() {
           </div>
         ) : null}
       </Modal>
+
+      <ConfirmDialog
+        open={deletingClass !== null}
+        title="Xóa lớp học"
+        loading={busy}
+        confirmLabel="Xóa lớp"
+        description={
+          <>
+            <Notice tone="warn" className="mb-2">
+              Chỉ xóa được lớp chưa có dữ liệu điểm thi đua hoặc phân công. Nếu lớp đã có dữ liệu,
+              hệ thống sẽ từ chối để bảo toàn lịch sử.
+            </Notice>
+            <p className="m-0">
+              Bạn có chắc chắn muốn xóa lớp <strong>{deletingClass?.className}</strong>?
+            </p>
+          </>
+        }
+        onCancel={() => setDeletingClass(null)}
+        onConfirm={() => void deleteClass()}
+      />
     </>
   );
 }

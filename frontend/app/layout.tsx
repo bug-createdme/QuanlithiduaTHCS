@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { AuthProvider } from '@/hooks/useAuth';
+import { ConfirmProvider } from '@/hooks/useConfirm';
 import { ScopeProvider } from '@/hooks/useScope';
 import { ToastProvider } from '@/hooks/useToast';
 import './globals.css';
@@ -11,10 +12,11 @@ export const metadata: Metadata = {
   applicationName: 'Trợ lý TPT Đội',
   icons: {
     icon: [
+      { url: '/images/logo-thcs-le-ninh.png', sizes: 'any' },
       { url: '/favicon.svg', type: 'image/svg+xml' },
       { url: '/icons/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
     ],
-    apple: '/icons/icon-192.svg',
+    apple: '/images/logo-thcs-le-ninh.png',
   },
   manifest: '/manifest.webmanifest',
 };
@@ -30,11 +32,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi">
       {/* data-paper điều khiển khổ in A4 ngang/dọc, giống bản gốc. */}
-      <body data-paper="landscape">
+      <body data-paper="landscape" suppressHydrationWarning>
         <ToastProvider>
-          <AuthProvider>
-            <ScopeProvider>{children}</ScopeProvider>
-          </AuthProvider>
+          <ConfirmProvider>
+            <AuthProvider>
+              <ScopeProvider>{children}</ScopeProvider>
+            </AuthProvider>
+          </ConfirmProvider>
         </ToastProvider>
       </body>
     </html>

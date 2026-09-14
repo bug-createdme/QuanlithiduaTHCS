@@ -160,6 +160,15 @@ function TasksPageInner() {
     }
   }, [scope.yearId, toast, toastError, refetch]);
 
+  const exportCsv = useCallback(async () => {
+    try {
+      await api.download('/tasks/export', params, 'cong-viec.csv');
+      toast('Đã xuất danh sách công việc ra CSV');
+    } catch (err) {
+      toastError(err);
+    }
+  }, [params, toast, toastError]);
+
   const handleDelete = useCallback(async () => {
     if (!deleting) return;
     setDeletingBusy(true);
@@ -194,7 +203,7 @@ function TasksPageInner() {
             </Button>
             <Button
               icon={<Download size={15} aria-hidden />}
-              onClick={() => void api.download('/tasks/export', params, 'cong-viec.csv')}
+              onClick={() => void exportCsv()}
             >
               Xuất CSV
             </Button>

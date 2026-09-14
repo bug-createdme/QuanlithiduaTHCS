@@ -1,7 +1,8 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { AlertTriangle, HelpCircle, X } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
+import { useToast } from '@/hooks/useToast';
 import { cx } from '@/lib/format';
 import { Button, IconButton } from './index';
 
@@ -131,6 +132,7 @@ export function ConfirmDialog({
   loading = false,
   onConfirm,
   onCancel,
+  cancelToast,
   children,
 }: {
   open: boolean;
@@ -138,20 +140,31 @@ export function ConfirmDialog({
   description: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
-  tone?: 'danger' | 'primary';
+  tone?: 'danger' | 'primary' | 'warn';
   loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  cancelToast?: string | false;
   children?: ReactNode;
 }) {
+  const { toast } = useToast();
+  const Icon = tone === 'primary' ? HelpCircle : AlertTriangle;
+
+  const handleCancel = () => {
+    if (cancelToast !== false) {
+      toast(typeof cancelToast === 'string' ? cancelToast : 'Đã hủy thao tác.', 'info');
+    }
+    onCancel();
+  };
+
   return (
     <Modal
       open={open}
       title={title}
-      onClose={onCancel}
+      onClose={handleCancel}
       footer={
         <>
-          <Button onClick={onCancel} disabled={loading}>
+          <Button onClick={handleCancel} disabled={loading}>
             {cancelLabel}
           </Button>
           <Button variant={tone === 'danger' ? 'danger' : 'primary'} onClick={onConfirm} loading={loading}>
@@ -160,9 +173,23 @@ export function ConfirmDialog({
         </>
       }
     >
-      <div className="space-y-3 text-[13px]">
-        <div>{description}</div>
-        {children}
+      <div className="flex items-start gap-3 text-[13px]">
+        <div
+          className={cx(
+            'mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl',
+            tone === 'danger'
+              ? 'border border-rose-200 bg-rose-50 text-rose-600'
+              : tone === 'warn'
+                ? 'border border-amber-200 bg-amber-50 text-amber-600'
+                : 'border border-blue-200 bg-blue-50 text-blue-600',
+          )}
+        >
+          <Icon size={19} aria-hidden />
+        </div>
+        <div className="flex-1 space-y-2.5">
+          <div className="leading-relaxed">{description}</div>
+          {children}
+        </div>
       </div>
     </Modal>
   );

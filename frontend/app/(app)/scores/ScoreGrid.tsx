@@ -6,6 +6,7 @@ import { cx } from '@/lib/format';
 import { api } from '@/services/api';
 import type { Criterion, ScoreContext, ScoreEntry } from '@/types';
 import { Badge, Notice } from '@/components/ui';
+import { EvidenceDialog } from './EvidenceDialog';
 
 interface UndoAction {
   type: 'delete' | 'restore';
@@ -46,6 +47,8 @@ export function ScoreGrid({
 }) {
   const { toast, toastError } = useToast();
   const [saving, setSaving] = useState<Set<string>>(new Set());
+  /** Ô đang mở hộp thoại minh chứng; null nghĩa là đang đóng. */
+  const [evidenceEntryId, setEvidenceEntryId] = useState<string | null>(null);
   const gridRef = useRef<HTMLTableElement>(null);
 
   const locked = context.sheet?.status === 'LOCKED';
@@ -186,25 +189,46 @@ export function ScoreGrid({
                 const key = cellKey(cls.id, criterion.id);
                 return (
                   <td key={criterion.id} className="text-center">
-                    <input
-                      className={cx(
-                        'score-input',
-                        !entry && 'score-input-missing',
-                        saving.has(key) && 'opacity-60',
-                      )}
-                      data-row={rowIndex}
-                      data-col={colIndex}
-                      defaultValue={displayValue(entry)}
-                      disabled={locked}
-                      aria-label={`${cls.className} - ${criterion.name}`}
-                      onKeyDown={handleKeyDown}
-                      onPaste={(e) => void handlePaste(e)}
-                      onBlur={(e) => {
-                        const next = e.currentTarget.value.trim();
-                        if (next === displayValue(entry).toString().trim()) return;
-                        void saveCell(cls.id, criterion.id, next);
-                      }}
-                    />
+                    <div className="flex items-center justify-center gap-1">
+                      <input
+                        className={cx(
+                          'score-input',
+                          !entry && 'score-input-missing',
+                          saving.has(key) && 'opacity-60',
+                        )}
+                        data-row={rowIndex}
+                        data-col={colIndex}
+                        defaultValue={displayValue(entry)}
+                        disabled={locked}
+                        aria-label={`${cls.className} - ${criterion.name}`}
+                        onKeyDown={handleKeyDown}
+                        onPaste={(e) => void handlePaste(e)}
+                        onBlur={(e) => {
+                          const next = e.currentTarget.value.trim();
+                          if (next === displayValue(entry).toString().trim()) return;
+                          void saveCell(cls.id, criterion.id, next);
+                        }}
+                      />
+                      {/* Minh chứng gắn theo ô đã có dữ liệu, nên chỉ hiện khi ô có giá trị. */}
+                      {entry ? (
+                        <button
+                          type="button"
+                          className={cx(
+                            'shrink-0 rounded px-1 text-[11px] leading-none transition-colors',
+                            criterion.evidenceRequired ? 'text-red' : 'text-muted hover:text-blue',
+                          )}
+                          title={
+                            criterion.evidenceRequired
+                              ? `Minh chứng bắt buộc — ${cls.className} · ${criterion.code}`
+                              : `Minh chứng — ${cls.className} · ${criterion.code}`
+                          }
+                          aria-label={`Minh chứng cho ${cls.className}, tiêu chí ${criterion.name}`}
+                          onClick={() => setEvidenceEntryId(entry.id)}
+                        >
+                          ⛃
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                 );
               });
@@ -235,8 +259,18 @@ export function ScoreGrid({
       <Notice className="mt-2.5">
         Ô trống = chưa nhập; nhập <strong>0</strong> = có dữ liệu bằng 0; nhập <strong>KAD</strong> =
         không áp dụng; nhập <strong>MIỄN</strong> = được miễn. Có thể dán một vùng dữ liệu từ Excel
-        bắt đầu tại ô đang chọn. Enter xuống dòng, Shift+Enter lên dòng.
+        bắt đầu tại ô đang chọn. Enter xuống dòng, Shift+Enter lên dòng. Bấm <strong>⛃</strong> cạnh
+        một ô đã nhập để gắn minh chứng.
       </Notice>
+
+      {evidenceEntryId ? (
+        <EvidenceDialog
+          scoreEntryId={evidenceEntryId}
+          locked={locked}
+          onClose={() => setEvidenceEntryId(null)}
+          onChanged={onChanged}
+        />
+      ) : null}
     </>
   );
 }

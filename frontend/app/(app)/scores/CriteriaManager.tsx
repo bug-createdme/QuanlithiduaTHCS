@@ -2,6 +2,7 @@
 
 import { Copy, Download, Plus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useConfirm } from '@/hooks/useConfirm';
 import { useScope } from '@/hooks/useScope';
 import { useToast } from '@/hooks/useToast';
 import { toDateInput } from '@/lib/format';
@@ -94,6 +95,7 @@ export function CriteriaManager({
 }) {
   const scope = useScope();
   const { toast, toastError } = useToast();
+  const confirm = useConfirm();
 
   const [sets, setSets] = useState<CriteriaSet[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(initialSetId);
@@ -210,6 +212,13 @@ export function CriteriaManager({
 
   const cloneSet = async () => {
     if (!detail) return;
+    const ok = await confirm({
+      title: 'Nhân bản bộ tiêu chí',
+      description: `Bạn có chắc muốn nhân bản bộ tiêu chí "${detail.name}" (v${detail.version}) thành một phiên bản mới? Toàn bộ tiêu chí sẽ được sao chép sang bộ mới ở trạng thái dự thảo.`,
+      confirmLabel: 'Nhân bản',
+      tone: 'primary',
+    });
+    if (!ok) return;
     setSaving(true);
     try {
       const clone = await api.post<CriteriaSet>(`/criteria/sets/${detail.id}/clone`);
@@ -260,8 +269,19 @@ export function CriteriaManager({
   const toggleCriterion = async (criterion: Criterion) => {
     try {
       await api.patch(`/criteria/criteria/${criterion.id}`, { active: !criterion.active });
+      toast(criterion.active ? 'Đã ngừng sử dụng tiêu chí' : 'Đã kích hoạt tiêu chí');
       if (detail) await loadDetail(detail.id);
       onChanged();
+    } catch (err) {
+      toastError(err);
+    }
+  };
+
+  const exportJson = async () => {
+    if (!detail) return;
+    try {
+      await api.download(`/criteria/sets/${detail.id}/export`, undefined, 'bo-tieu-chi.json');
+      toast('Đã xuất bộ tiêu chí ra tệp JSON');
     } catch (err) {
       toastError(err);
     }
@@ -319,10 +339,7 @@ export function CriteriaManager({
             size="sm"
             icon={<Download size={14} aria-hidden />}
             disabled={!detail}
-            onClick={() =>
-              detail &&
-              void api.download(`/criteria/sets/${detail.id}/export`, undefined, 'bo-tieu-chi.json')
-            }
+            onClick={() => void exportJson()}
           >
             Xuất JSON
           </Button>

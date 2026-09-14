@@ -3,6 +3,7 @@
 import { ArrowRight, Settings2, Undo2 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useConfirm } from '@/hooks/useConfirm';
 import { useScope } from '@/hooks/useScope';
 import { useToast } from '@/hooks/useToast';
 import { fmtDate, fmtDateTime } from '@/lib/format';
@@ -36,6 +37,7 @@ type ScoreTab = 'entry' | 'ranking' | 'anomaly' | 'history';
 export default function ScoresPage() {
   const scope = useScope();
   const { toast, toastError } = useToast();
+  const confirm = useConfirm();
 
   const [tab, setTab] = useState<ScoreTab>('entry');
   const [criteriaSetId, setCriteriaSetId] = useState<string>('');
@@ -74,9 +76,9 @@ export default function ScoresPage() {
   /** Nút quy trình: khởi tạo bảng hoặc chuyển sang trạng thái kế tiếp. */
   const runWorkflow = useCallback(async () => {
     if (!context) return;
-    setBusy(true);
     try {
       if (!context.sheet) {
+        setBusy(true);
         await api.post('/scores/sheets', {
           schoolYearId: scope.yearId,
           semesterId: scope.semesterId === 'all' ? null : scope.semesterId,
@@ -89,6 +91,14 @@ export default function ScoresPage() {
         setUnlockOpen(true);
         return;
       } else {
+        const ok = await confirm({
+          title: 'Chuyển trạng thái bảng điểm',
+          description: `Bạn có chắc muốn thực hiện "${context.workflowLabel}" cho bảng điểm tuần này không?`,
+          confirmLabel: context.workflowLabel,
+          tone: 'primary',
+        });
+        if (!ok) return;
+        setBusy(true);
         await api.post(`/scores/sheets/${context.sheet.id}/advance`);
         toast('Đã cập nhật trạng thái bảng tuần');
       }
@@ -98,7 +108,7 @@ export default function ScoresPage() {
     } finally {
       setBusy(false);
     }
-  }, [context, scope, criteriaSetId, toast, toastError, reloadAll]);
+  }, [context, scope, criteriaSetId, confirm, toast, toastError, reloadAll]);
 
   const doUnlock = useCallback(async () => {
     if (!context?.sheet) return;
@@ -207,7 +217,12 @@ export default function ScoresPage() {
             <span className="shrink-0">Bộ tiêu chí</span>
             <Select
               value={context.set?.id ?? ''}
-              onChange={(e) => setCriteriaSetId(e.target.value)}
+              onChange={(e) => {
+                const nextId = e.target.value;
+                setCriteriaSetId(nextId);
+                const picked = context.sets.find((s) => s.id === nextId);
+                if (picked) toast(`Đã chuyển sang bộ tiêu chí: ${picked.name}`);
+              }}
               className="min-w-0 flex-1 md:max-w-[360px]"
             >
               {context.sets.map((set) => (

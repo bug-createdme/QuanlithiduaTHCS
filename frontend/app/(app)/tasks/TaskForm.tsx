@@ -10,6 +10,7 @@ import type { ConfigItem, CustomFieldDefinition, Task } from '@/types';
 import { Button, Field, LoadingState, Select, TextArea, TextInput } from '@/components/ui';
 import { Modal } from '@/components/ui/Modal';
 import { CustomFieldInputs, collectCustomValues } from '@/components/entity/CustomFieldInputs';
+import { TaskDependencies } from './TaskDependencies';
 
 interface TaskFormState {
   title: string;
@@ -350,6 +351,9 @@ export function TaskForm({
               values={customValues}
               onChange={setCustomValues}
             />
+
+            {/* Phụ thuộc gắn theo công việc đã tồn tại nên chỉ hiện khi đang sửa. */}
+            {taskId ? <TaskDependencies taskId={taskId} /> : null}
           </div>
         </form>
       )}

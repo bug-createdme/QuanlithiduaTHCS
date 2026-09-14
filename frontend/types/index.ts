@@ -99,7 +99,10 @@ export interface SchoolClass extends BaseRecord {
   code: string | null;
   className: string;
   grade: number;
+  /** Ô văn bản tự do giữ nguyên từ bản gốc. */
   teacher: string | null;
+  /** Liên kết chuẩn hóa tùy chọn tới danh bạ giáo viên chủ nhiệm. */
+  homeroomTeacherId: string | null;
   active: boolean;
   isSample: boolean;
   campus?: Pick<Campus, 'id' | 'name' | 'code'>;
@@ -535,4 +538,95 @@ export interface PageMeta {
   page: number;
   pageSize: number;
   pageCount: number;
+}
+
+/* ─────────────── Bảng con: chỉ tiêu, phụ thuộc, minh chứng, sổ mượn ─────── */
+
+export type DependencyType = 'FINISH_TO_START' | 'START_TO_START';
+export type EquipmentTxType = 'BORROW' | 'RETURN' | 'REPAIR' | 'DISPOSE';
+
+export interface PlanTarget extends BaseRecord {
+  planId: string;
+  name: string;
+  targetValue: string | null;
+  actualValue: string | null;
+  unit: string | null;
+  sortOrder: number;
+}
+
+export interface TrainingRecord extends BaseRecord {
+  teamMemberId: string;
+  content: string;
+  date: string | null;
+  result: string | null;
+  note: string | null;
+}
+
+export interface EquipmentTransaction extends BaseRecord {
+  equipmentId: string;
+  type: EquipmentTxType;
+  quantity: number;
+  borrower: string | null;
+  borrowedAt: string | null;
+  dueAt: string | null;
+  returnedAt: string | null;
+  conditionBefore: string | null;
+  conditionAfter: string | null;
+  note: string | null;
+}
+
+/** Công việc rút gọn dùng trong danh sách phụ thuộc. */
+export interface TaskBrief {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  dueDate: string;
+}
+
+export interface TaskDependency extends BaseRecord {
+  taskId: string;
+  dependsOnId: string;
+  type: DependencyType;
+  dependsOn?: TaskBrief;
+  task?: TaskBrief;
+}
+
+export interface TaskDependencyView {
+  dependsOn: Array<TaskDependency & { dependsOn: TaskBrief }>;
+  blocking: Array<TaskDependency & { task: TaskBrief }>;
+  /** Số việc phải chờ mà chưa hoàn thành. */
+  blockedBy: number;
+}
+
+export interface ScoreEvidence extends BaseRecord {
+  scoreEntryId: string;
+  attachmentId: string | null;
+  note: string | null;
+  attachment: {
+    id: string;
+    fileName: string;
+    extension: string | null;
+    size: number;
+    mimeType: string | null;
+  } | null;
+}
+
+export interface ScoreEvidenceView {
+  evidence: ScoreEvidence[];
+  entry: {
+    id: string;
+    className: string;
+    criterionCode: string;
+    criterionName: string;
+    evidenceRequired: boolean;
+  };
+}
+
+export interface HomeroomTeacher extends BaseRecord {
+  schoolYearId: string;
+  fullName: string;
+  phone: string | null;
+  email: string | null;
+  note: string | null;
+  classes?: Array<{ id: string; className: string }>;
 }

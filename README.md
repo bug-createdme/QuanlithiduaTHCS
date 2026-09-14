@@ -53,20 +53,20 @@ xem [`CLONE_ANALYSIS.md`](CLONE_ANALYSIS.md) để biết mức độ đối chi
 |---|---|
 | **Tổng quan** | 6 thẻ KPI bấm được, việc cần xử lý, tiến độ, hoạt động sắp tới, 5 lớp dẫn đầu |
 | **Hôm nay** | Việc đến hạn, lịch trong ngày, checklist trực tuần, ghi nhận nhanh |
-| **Kế hoạch** | Kế hoạch năm/kỳ/tháng/tuần, mục tiêu, chỉ tiêu, rủi ro |
-| **Công việc** | Danh sách + Kanban, checklist con, việc lặp định kỳ, thư viện 16 mẫu |
+| **Kế hoạch** | Kế hoạch năm/kỳ/tháng/tuần, mục tiêu, rủi ro, **chỉ tiêu đo được kèm tiến độ** |
+| **Công việc** | Danh sách + Kanban, checklist con, việc lặp định kỳ, thư viện 16 mẫu, **phụ thuộc giữa các việc (chặn vòng lặp)** |
 | **Lịch hoạt động** | Lịch tháng 42 ô, cảnh báo thiếu địa điểm/phụ trách/an toàn |
-| **Thi đua lớp** | Nhập điểm, dán từ Excel, quy trình duyệt–khóa 6 trạng thái, xếp hạng, kiểm tra bất thường, nhật ký |
+| **Thi đua lớp** | Nhập điểm, dán từ Excel, quy trình duyệt–khóa 6 trạng thái, xếp hạng, kiểm tra bất thường, **minh chứng theo từng ô**, nhật ký |
 | **Hoạt động Đội** | Tổ chức hoạt động kèm phương án an toàn và dự phòng |
-| **Tổ chức Liên đội** | Ban Chỉ huy, đội nghi lễ, phát thanh măng non |
+| **Tổ chức Liên đội** | Ban Chỉ huy, đội nghi lễ, phát thanh măng non, **sổ bồi dưỡng từng thành viên** |
 | **Rèn luyện – phong trào** | Chương trình, chuyên hiệu, công trình măng non |
 | **Khen thưởng** | Hồ sơ khen thưởng tập thể và cá nhân |
 | **Hồ sơ – minh chứng** | Kho tệp thật, thư mục, phiên bản tệp, thùng rác, tìm kiếm bỏ dấu |
-| **Thiết bị Đội** | Kiểm kê, tình trạng, mượn–trả |
+| **Thiết bị Đội** | Kiểm kê, tình trạng, **sổ mượn–trả có kiểm soát tồn kho** |
 | **Báo cáo** | 5 loại báo cáo, lưu nháp/chốt bất biến kèm checksum, xuất CSV, in A4 |
 | **Trợ lý tổng hợp** | Tra cứu theo quy tắc trên dữ liệu đã lưu (không dùng AI) |
 | **Sao lưu – đồng bộ** | Xuất/nhập 3 phạm vi, điểm khôi phục nội bộ, nhật ký kiểm toán |
-| **Thiết lập** | 14 nhóm cấu hình, 21 danh mục động, trường tùy chỉnh, vòng đời năm học |
+| **Thiết lập** | 14 nhóm cấu hình, 21 danh mục động, trường tùy chỉnh, vòng đời năm học, **danh bạ giáo viên chủ nhiệm** |
 
 **Điểm nhấn nghiệp vụ được giữ nguyên từ bản gốc**
 
@@ -307,7 +307,7 @@ PostgreSQL cài sẵn trên máy. Đổi bằng `POSTGRES_PORT` trong `.env` ở
 
 ## Kiểm thử
 
-**388 bài kiểm thử tự động**, chạy khoảng 15 giây.
+**433 bài kiểm thử tự động**, chạy khoảng 15 giây.
 
 ```bash
 npm test
@@ -315,9 +315,9 @@ npm test
 
 | Lệnh | Nội dung |
 |---|---|
-| `npm test` | Toàn bộ 388 bài (backend 341 + frontend 47) |
+| `npm test` | Toàn bộ 433 bài (backend 386 + frontend 47) |
 | `npm run test:unit` | 134 bài logic thuần, **không cần cơ sở dữ liệu** |
-| `npm run test:integration` | 254 bài gọi API thật |
+| `npm run test:integration` | 299 bài gọi API thật |
 | `npm run test:backend` / `npm run test:frontend` | Chạy riêng từng bên |
 | `npm run test:coverage` | Đo độ phủ mã backend |
 | `npm run verify` | typecheck → lint → test → build |
@@ -325,7 +325,7 @@ npm test
 | Nhóm | Số bài | Cần PostgreSQL? |
 |---|---|---|
 | Backend — unit | 87 | Không |
-| Backend — integration | 254 | Có |
+| Backend — integration | 299 | Có |
 | Frontend — unit | 47 | Không |
 
 > Integration test dùng **database riêng** `tpt_doi_thcs_test`, tự tạo và tự dọn.
@@ -445,12 +445,11 @@ và *Ghi chú nhanh* vẫn lưu vào hồ sơ thay vì bảng riêng — đúng 
 
 ## Hạn chế đã biết
 
-1. **Chưa có kiểm thử giao diện ở mức component.** Đã có 388 bài kiểm thử cho nghiệp vụ và API (xem [Kiểm thử](#kiểm-thử)), nhưng chưa có test render component React hay test đầu-cuối trên trình duyệt.
+1. **Chưa có kiểm thử giao diện ở mức component.** Đã có 433 bài kiểm thử cho nghiệp vụ và API (xem [Kiểm thử](#kiểm-thử)), nhưng chưa có test render component React hay test đầu-cuối trên trình duyệt.
 2. **Chưa có màn hình quản lý người dùng.** Lược đồ đã hỗ trợ ba vai trò `ADMIN`/`EDITOR`/`VIEWER` và API đã kiểm tra quyền, nhưng việc tạo tài khoản mới hiện phải làm qua `prisma studio`.
-3. **Sáu bảng dựng sẵn chưa có giao diện:** `plan_targets`, `task_dependencies`, `score_evidence`, `equipment_transactions`, `training_records`, `homeroom_teachers`. Bản gốc cũng chưa có màn hình cho các phần này.
-4. **Phục hồi dữ liệu là thao tác ghi đè toàn cục.** Có tạo điểm khôi phục bảo vệ trước khi ghi, nhưng chưa có chế độ hợp nhất theo từng trường.
-5. **Chưa có xử lý ảnh.** Ảnh tải lên được lưu nguyên bản, chưa tạo ảnh thu nhỏ.
-6. **Chưa hỗ trợ ngoại tuyến.** Bản gốc là PWA chạy được khi mất mạng; bản này cần kết nối tới máy chủ.
+3. **Phục hồi dữ liệu là thao tác ghi đè toàn cục.** Có tạo điểm khôi phục bảo vệ trước khi ghi, nhưng chưa có chế độ hợp nhất theo từng trường.
+4. **Chưa có xử lý ảnh.** Ảnh tải lên được lưu nguyên bản, chưa tạo ảnh thu nhỏ.
+5. **Chưa hỗ trợ ngoại tuyến.** Bản gốc là PWA chạy được khi mất mạng; bản này cần kết nối tới máy chủ.
 
 ---
 
