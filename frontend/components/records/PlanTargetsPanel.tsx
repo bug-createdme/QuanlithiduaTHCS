@@ -111,7 +111,7 @@ export function PlanTargetsPanel({ planId }: { planId: string }) {
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[12.5px] text-muted">
+        <span className="text-sm text-muted">
           {targets.length} chỉ tiêu đo được. Ô “Chỉ tiêu” trong biểu mẫu kế hoạch vẫn dùng để mô tả
           bằng lời.
         </span>
@@ -155,7 +155,7 @@ export function PlanTargetsPanel({ planId }: { planId: string }) {
                     ) : (
                       <div className="flex items-center gap-2">
                         <ProgressBar value={percent} className="flex-1" />
-                        <span className="w-[38px] shrink-0 text-right text-[12px] tabular-nums">
+                        <span className="w-[38px] shrink-0 text-right text-xs tabular-nums">
                           {percent}%
                         </span>
                       </div>

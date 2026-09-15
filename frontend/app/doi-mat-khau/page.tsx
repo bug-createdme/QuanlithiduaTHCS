@@ -1,12 +1,13 @@
 'use client';
 
-import { KeyRound } from 'lucide-react';
+import { ArrowLeft, KeyRound } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { ApiError, api } from '@/services/api';
-import { Button, Notice } from '@/components/ui';
+import { Avatar, Button, Notice } from '@/components/ui';
 
 /**
  * Đổi mật khẩu. Bắt buộc ở lần đăng nhập đầu vì tài khoản seed dùng
@@ -50,27 +51,43 @@ export default function ChangePasswordPage() {
   if (loading || !user) return null;
 
   return (
-    <div className="grid h-full place-items-center overflow-auto bg-gradient-to-br from-[#0a3764] to-[#0b6bcb] p-4">
-      <div className="w-full max-w-[440px] rounded-card bg-card p-6 shadow-modal">
-        <div className="mb-4 flex flex-col items-center text-center">
+    <div className="relative grid h-full place-items-center overflow-auto bg-neutral-950 p-4">
+      <div className="absolute inset-0 z-0">
+        <Image
+          src="/images/truong-thcs-le-ninh.jpg"
+          alt=""
+          aria-hidden
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-brand-950/88" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-[460px] rounded-xl border border-line bg-card p-6 shadow-xl sm:p-7">
+        <div className="mb-5 flex items-center gap-3.5">
           <span
-            className="mb-3 grid h-[52px] w-[52px] place-items-center rounded-[14px] bg-blue text-white"
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600"
             aria-hidden
           >
-            <KeyRound size={24} />
+            <KeyRound size={22} />
           </span>
-          <h1 className="m-0 text-[16px] font-bold">Đổi mật khẩu</h1>
-          <p className="mt-1 text-[12.5px] text-muted">Tài khoản: {user.fullName}</p>
+          <div className="min-w-0">
+            <h1 className="m-0 text-2xl font-bold tracking-tight text-ink">Đổi mật khẩu</h1>
+            <p className="mt-0.5 truncate text-sm text-neutral-500">
+              Tài khoản: {user.fullName || user.username}
+            </p>
+          </div>
         </div>
 
         {user.mustChangePassword ? (
-          <Notice tone="warn" className="mb-3">
-            Tài khoản đang dùng mật khẩu khởi tạo mặc định. Hãy đặt mật khẩu riêng trước khi sử dụng
-            hệ thống.
+          <Notice tone="warn" title="Đang dùng mật khẩu khởi tạo mặc định." className="mb-4">
+            Hãy đặt mật khẩu riêng trước khi sử dụng hệ thống.
           </Notice>
         ) : null}
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
             <label className="field-label field-label-required" htmlFor="currentPassword">
               Mật khẩu hiện tại
@@ -82,10 +99,11 @@ export default function ChangePasswordPage() {
               onChange={(e) => setCurrentPassword(e.target.value)}
               autoComplete="current-password"
               required
-              className="field-input"
+              aria-invalid={Boolean(issues.currentPassword) || undefined}
+              className={`field-input${issues.currentPassword ? ' field-input-error' : ''}`}
             />
             {issues.currentPassword ? (
-              <span className="mt-1 block text-[11px] font-semibold text-red">
+              <span className="field-error" role="alert">
                 {issues.currentPassword}
               </span>
             ) : null}
@@ -103,14 +121,16 @@ export default function ChangePasswordPage() {
               autoComplete="new-password"
               minLength={8}
               required
-              className="field-input"
+              aria-invalid={Boolean(issues.newPassword) || undefined}
+              className={`field-input${issues.newPassword ? ' field-input-error' : ''}`}
             />
-            <span className="field-hint">Tối thiểu 8 ký tự, khác mật khẩu hiện tại.</span>
             {issues.newPassword ? (
-              <span className="mt-1 block text-[11px] font-semibold text-red">
+              <span className="field-error" role="alert">
                 {issues.newPassword}
               </span>
-            ) : null}
+            ) : (
+              <span className="field-hint">Tối thiểu 8 ký tự, khác mật khẩu hiện tại.</span>
+            )}
           </div>
 
           <div>
@@ -124,30 +144,42 @@ export default function ChangePasswordPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               autoComplete="new-password"
               required
-              className="field-input"
+              aria-invalid={Boolean(issues.confirmPassword) || undefined}
+              className={`field-input${issues.confirmPassword ? ' field-input-error' : ''}`}
             />
             {issues.confirmPassword ? (
-              <span className="mt-1 block text-[11px] font-semibold text-red">
+              <span className="field-error" role="alert">
                 {issues.confirmPassword}
               </span>
             ) : null}
           </div>
 
-          {message ? <p className="text-[12px] font-semibold text-red">{message}</p> : null}
+          {message ? (
+            <Notice tone="danger" className="m-0">
+              {message}
+            </Notice>
+          ) : null}
 
-          <Button type="submit" variant="primary" className="w-full" loading={busy}>
+          <Button type="submit" variant="primary" size="lg" block loading={busy}>
             Đổi mật khẩu
           </Button>
         </form>
 
         {!user.mustChangePassword ? (
-          <button
-            type="button"
-            onClick={() => router.push('/dashboard')}
-            className="mt-3 w-full text-center text-[12px] text-muted hover:text-blue hover:underline"
-          >
-            Quay lại Tổng quan
-          </button>
+          <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3.5">
+            <span className="flex min-w-0 items-center gap-2">
+              <Avatar name={user.fullName ?? user.username} size={26} />
+              <span className="truncate text-xs text-neutral-500">@{user.username}</span>
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<ArrowLeft size={14} aria-hidden />}
+              onClick={() => router.push('/dashboard')}
+            >
+              Quay lại Tổng quan
+            </Button>
+          </div>
         ) : null}
       </div>
     </div>

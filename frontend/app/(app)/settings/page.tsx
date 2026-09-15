@@ -1,6 +1,18 @@
 'use client';
 
-import { Download, Trash2, Upload } from 'lucide-react';
+import {
+  Building2,
+  Download,
+  KeyRound,
+  Palette,
+  Save,
+  ShieldCheck,
+  Sliders,
+  Star,
+  Trash2,
+  Upload,
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,18 +25,19 @@ import { USER_ROLE_LABEL } from '@/lib/labels';
 import { api } from '@/services/api';
 import type { School } from '@/types';
 import {
+  Avatar,
   Badge,
   Button,
   Card,
   CardBody,
   CardHead,
-  Checkbox,
   Field,
   LoadingState,
   Notice,
   PageHead,
   Select,
   Split,
+  Switch,
   TextInput,
 } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui/Modal';
@@ -77,7 +90,11 @@ function SchoolPanel() {
 
   return (
     <Card>
-      <CardHead title="Thông tin trường" />
+      <CardHead
+        title="Thông tin trường"
+        icon={<Building2 size={16} aria-hidden />}
+        description="Những thông tin này xuất hiện trên mọi báo cáo và mẫu in."
+      />
       <CardBody>
         {data?.isSample ? (
           <Notice tone="warn" className="mb-3">
@@ -114,7 +131,13 @@ function SchoolPanel() {
             />
           </Field>
         </div>
-        <Button variant="primary" className="mt-3" loading={busy} onClick={() => void save()}>
+        <Button
+          variant="primary"
+          className="mt-4"
+          icon={<Save size={15} aria-hidden />}
+          loading={busy}
+          onClick={() => void save()}
+        >
           Lưu thông tin
         </Button>
       </CardBody>
@@ -151,22 +174,41 @@ function AppearancePanel({
 
   return (
     <Card>
-      <CardHead title="Giao diện và in" />
+      <CardHead
+        title="Giao diện và khổ in"
+        icon={<Palette size={16} aria-hidden />}
+        description="Áp dụng cho toàn bộ tài khoản trên thiết bị này."
+      />
       <CardBody>
         <div className="form-grid">
-          <Field label="Khổ in báo cáo">
+          <Field
+            label="Khổ in báo cáo"
+            hint="A4 ngang hợp với bảng nhiều cột như bảng thi đua."
+          >
             <Select value={paper} onChange={(e) => setPaper(e.target.value)}>
               <option value="landscape">A4 ngang</option>
               <option value="portrait">A4 dọc</option>
             </Select>
           </Field>
-          <Checkbox
-            label="Chế độ hiển thị gọn"
-            checked={compact}
-            onChange={(e) => setCompact(e.target.checked)}
-          />
+
+          <div className="flex flex-col justify-center">
+            <Switch
+              checked={compact}
+              onCheckedChange={setCompact}
+              label="Chế độ hiển thị gọn"
+            />
+            <p className="mt-1.5 text-xs text-neutral-500">
+              Giảm khoảng cách giữa các dòng để xem được nhiều bản ghi hơn trên một màn hình.
+            </p>
+          </div>
         </div>
-        <Button variant="primary" className="mt-3" loading={busy} onClick={() => void save()}>
+        <Button
+          variant="primary"
+          className="mt-4"
+          icon={<Save size={15} aria-hidden />}
+          loading={busy}
+          onClick={() => void save()}
+        >
           Lưu giao diện
         </Button>
       </CardBody>
@@ -269,7 +311,7 @@ function DataPanel({ settings, onSaved }: { settings: AppSettings; onSaved: () =
         <Card>
           <CardHead title="Cấu hình danh mục" />
           <CardBody>
-            <p className="m-0 mb-2 text-[12.5px] text-muted">
+            <p className="m-0 mb-2 text-sm text-muted">
               Xuất/nhập toàn bộ danh mục và trường tùy chỉnh để dùng lại ở trường khác.
             </p>
             <div className="flex flex-wrap gap-2">
@@ -303,7 +345,7 @@ function DataPanel({ settings, onSaved }: { settings: AppSettings; onSaved: () =
           <CardBody>
             {sampleQuery.data?.present ? (
               <>
-                <p className="m-0 mb-2 text-[12.5px]">
+                <p className="m-0 mb-2 text-sm">
                   Hệ thống đang có <strong>{sampleQuery.data.total}</strong> bản ghi mẫu (lớp, tiêu
                   chí, công việc) từ lúc khởi tạo.
                 </p>
@@ -318,7 +360,7 @@ function DataPanel({ settings, onSaved }: { settings: AppSettings; onSaved: () =
                 </Button>
               </>
             ) : (
-              <p className="m-0 text-[12.5px] text-muted">Không còn dữ liệu mẫu trong hệ thống.</p>
+              <p className="m-0 text-sm text-muted">Không còn dữ liệu mẫu trong hệ thống.</p>
             )}
           </CardBody>
         </Card>
@@ -379,6 +421,7 @@ function DataPanel({ settings, onSaved }: { settings: AppSettings; onSaved: () =
 
 /** Tab 14 — Khóa phiên và tài khoản. */
 function SecurityPanel() {
+  const router = useRouter();
   const { user, refreshUser } = useAuth();
   const { toast, toastError } = useToast();
   const [minutes, setMinutes] = useState(String(user?.autoLockMinutes ?? 10));
@@ -398,11 +441,18 @@ function SecurityPanel() {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3 tablet:grid-cols-1">
+    <div className="grid gap-4 lg:grid-cols-2">
       <Card>
-        <CardHead title="Khóa phiên làm việc" />
+        <CardHead
+          title="Khóa phiên làm việc"
+          icon={<ShieldCheck size={16} aria-hidden />}
+          description="Bảo vệ dữ liệu khi thiết bị bị bỏ quên ở phòng làm việc."
+        />
         <CardBody>
-          <Field label="Tự khóa khi không hoạt động">
+          <Field
+            label="Tự khóa khi không hoạt động"
+            hint="Khóa màn hình nhưng giữ nguyên dữ liệu đang mở; chỉ cần nhập lại mật khẩu."
+          >
             <Select value={minutes} onChange={(e) => setMinutes(e.target.value)}>
               {[5, 10, 15, 30].map((value) => (
                 <option key={value} value={value}>
@@ -411,32 +461,46 @@ function SecurityPanel() {
               ))}
             </Select>
           </Field>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button variant="primary" loading={busy} onClick={() => void save()}>
-              Lưu thời gian
-            </Button>
-          </div>
-          <Notice className="mt-3">
-            Khác với bản cũ, mật khẩu nay được băm bcrypt và kiểm tra ở máy chủ. Mã nguồn giao diện
-            công khai không còn chứa mật khẩu.
+          <Button
+            variant="primary"
+            className="mt-4"
+            icon={<Save size={15} aria-hidden />}
+            loading={busy}
+            onClick={() => void save()}
+          >
+            Lưu thời gian
+          </Button>
+          <Notice className="mt-4">
+            Mật khẩu được băm bcrypt và kiểm tra ở máy chủ; mã nguồn giao diện công khai không
+            chứa mật khẩu.
           </Notice>
         </CardBody>
       </Card>
 
       <Card>
-        <CardHead title="Tài khoản đang đăng nhập" />
+        <CardHead title="Tài khoản đang đăng nhập" icon={<KeyRound size={16} aria-hidden />} />
         <CardBody>
-          <Split label="Họ và tên">{user?.fullName}</Split>
-          <Split label="Tên đăng nhập">
-            <code className="text-[12px]">{user?.username}</code>
-          </Split>
-          <Split label="Vai trò">
-            <Badge tone="blue">{user ? USER_ROLE_LABEL[user.role] : '—'}</Badge>
-          </Split>
+          <div className="mb-3 flex items-center gap-3 rounded-md border border-line bg-neutral-25 p-3">
+            <Avatar name={user?.fullName ?? user?.username} size={40} />
+            <div className="min-w-0">
+              <p className="m-0 truncate text-lg font-semibold text-ink">{user?.fullName}</p>
+              <p className="m-0 truncate text-xs text-neutral-500">@{user?.username}</p>
+            </div>
+            <Badge tone="blue" className="ml-auto shrink-0">
+              {user ? USER_ROLE_LABEL[user.role] : '—'}
+            </Badge>
+          </div>
+
           <Split label="Đăng nhập gần nhất">
             {user?.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString('vi-VN') : 'Lần đầu'}
           </Split>
-          <Button className="mt-3" onClick={() => (window.location.href = '/doi-mat-khau')}>
+          <Split label="Tự khóa sau">{user?.autoLockMinutes ?? 10} phút không thao tác</Split>
+
+          <Button
+            className="mt-4"
+            icon={<KeyRound size={15} aria-hidden />}
+            onClick={() => router.push('/doi-mat-khau')}
+          >
             Đổi mật khẩu
           </Button>
         </CardBody>
@@ -446,6 +510,7 @@ function SecurityPanel() {
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const scope = useScope();
   const [tab, setTab] = useState<SettingsTabId>('school');
   const settingsQuery = useApiQuery<AppSettings>('/settings');
@@ -473,13 +538,13 @@ export default function SettingsPage() {
     if (tab === 'competition') {
       return (
         <Card>
-          <CardHead title="Bộ tiêu chí thi đua" />
+          <CardHead title="Bộ tiêu chí thi đua" icon={<Star size={16} aria-hidden />} />
           <CardBody>
-            <p className="m-0 mb-2 text-[12.5px]">
-              Quản lý nhiều bộ theo năm học, học kỳ, cơ sở, hiệu lực và phiên bản. Bộ đã có điểm chỉ
-              được tạo phiên bản mới.
+            <p className="m-0 mb-3 max-w-[70ch] text-base leading-relaxed text-neutral-600">
+              Quản lý nhiều bộ tiêu chí theo năm học, học kỳ, cơ sở, hiệu lực và phiên bản.
+              Bộ tiêu chí đã có điểm chỉ được tạo phiên bản mới để không làm sai lệch số liệu cũ.
             </p>
-            <Button variant="primary" onClick={() => (window.location.href = '/scores')}>
+            <Button variant="primary" onClick={() => router.push('/scores')}>
               Mở trình quản lý bộ tiêu chí
             </Button>
           </CardBody>
@@ -510,38 +575,58 @@ export default function SettingsPage() {
         {entity ? <CustomFieldPanel entity={entity} /> : null}
       </>
     );
-  }, [tab, settingsQuery]);
+  }, [tab, settingsQuery, router]);
+
+  const activeTabLabel = SETTINGS_TABS.find((item) => item.id === tab)?.label;
 
   if (!scope.ready || (settingsQuery.loading && !settingsQuery.data)) return <LoadingState />;
 
   return (
     <>
       <PageHead
+        eyebrow={activeTabLabel}
         title="Trung tâm cấu hình"
-        description="Điều chỉnh ứng dụng theo quy trình của từng trường mà không sửa mã nguồn."
+        description="Điều chỉnh ứng dụng theo quy trình của từng trường mà không cần sửa mã nguồn."
       />
 
-      <div className="grid grid-cols-[260px_1fr] gap-3 tablet:grid-cols-1">
+      <div className="grid grid-cols-[268px_1fr] gap-4 tablet:grid-cols-1">
         <nav
           aria-label="Nhóm cấu hình"
-          className="sticky top-0 h-fit space-y-0.5 rounded-card border border-line bg-card p-2 tablet:static tablet:flex tablet:gap-1 tablet:overflow-x-auto tablet:space-y-0"
+          className="sticky top-0 h-fit rounded-lg border border-line bg-card p-2 shadow-xs tablet:static tablet:flex tablet:gap-1 tablet:overflow-x-auto tablet:p-1.5 no-scrollbar"
         >
+          <p className="px-2.5 pb-1.5 pt-1 text-2xs font-bold uppercase tracking-[0.06em] text-neutral-400 tablet:hidden">
+            <Sliders size={12} className="mr-1 inline" aria-hidden />
+            14 nhóm cấu hình
+          </p>
+
           {SETTINGS_TABS.map((item, index) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setTab(item.id)}
+              aria-current={tab === item.id ? 'page' : undefined}
               className={cx(
-                'block w-full rounded-control px-2.5 py-2 text-left text-[12.5px] transition-colors tablet:w-auto tablet:min-w-[180px] tablet:shrink-0',
-                tab === item.id ? 'bg-blue text-white font-semibold' : 'hover:bg-blue-soft',
+                'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm transition-colors tablet:w-auto tablet:min-w-[170px] tablet:shrink-0',
+                tab === item.id
+                  ? 'bg-brand-50 font-semibold text-brand-700'
+                  : 'text-neutral-700 hover:bg-neutral-100',
               )}
             >
-              {index + 1}. {item.label}
+              <span
+                aria-hidden
+                className={cx(
+                  'grid h-5 w-5 shrink-0 place-items-center rounded-sm text-2xs font-bold tabular-nums',
+                  tab === item.id ? 'bg-brand-600 text-white' : 'bg-neutral-100 text-neutral-500',
+                )}
+              >
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1 leading-snug">{item.label}</span>
             </button>
           ))}
         </nav>
 
-        <section className="min-w-0">{renderPanel()}</section>
+        <section className="min-w-0 space-y-4">{renderPanel()}</section>
       </div>
     </>
   );

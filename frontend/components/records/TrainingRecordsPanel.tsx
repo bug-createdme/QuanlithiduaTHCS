@@ -9,6 +9,7 @@ import { api } from '@/services/api';
 import type { TrainingRecord } from '@/types';
 import {
   Button,
+  DateInput,
   ErrorState,
   Field,
   LinkButton,
@@ -109,7 +110,7 @@ export function TrainingRecordsPanel({
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[12.5px] text-muted">
+        <span className="text-sm text-muted">
           {records.length} buổi đã ghi nhận{memberName ? ` cho ${memberName}` : ''}.
         </span>
         <Button size="sm" variant="primary" icon={<Plus size={14} aria-hidden />} onClick={openCreate}>
@@ -138,7 +139,7 @@ export function TrainingRecordsPanel({
                 <td className="wrap">
                   {record.content}
                   {record.note ? (
-                    <div className="mt-0.5 text-[12px] text-muted">{record.note}</div>
+                    <div className="mt-0.5 text-xs text-muted">{record.note}</div>
                   ) : null}
                 </td>
                 <td className="wrap">{record.result ?? '—'}</td>
@@ -182,10 +183,9 @@ export function TrainingRecordsPanel({
             />
           </Field>
           <Field label="Thời gian">
-            <TextInput
-              type="date"
+            <DateInput
               value={form.date}
-              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              onValueChange={(date) => setForm({ ...form, date })}
             />
           </Field>
           <Field label="Kết quả">

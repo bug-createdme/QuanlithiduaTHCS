@@ -1,6 +1,13 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, Plus, Printer } from 'lucide-react';
+import {
+  CalendarPlus,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Printer,
+  Trash2,
+} from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useApiQuery } from '@/hooks/useApiQuery';
@@ -10,15 +17,21 @@ import { cx, fmtDate, toDateInput, todayISO } from '@/lib/format';
 import { api } from '@/services/api';
 import type { CalendarEvent } from '@/types';
 import {
+  Badge,
   Button,
+  CardSkeleton,
+  DateInput,
   ErrorState,
   Field,
+  FormSection,
+  IconButton,
   LoadingState,
   Notice,
   PageHead,
   Select,
   TextArea,
   TextInput,
+  TimeInput,
   Toolbar,
 } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
@@ -203,8 +216,9 @@ function CalendarPageInner() {
   return (
     <>
       <PageHead
+        eyebrow={`Tháng ${month + 1}/${year}`}
         title="Lịch hoạt động"
-        description="Xem lịch tháng; cảnh báo thiếu địa điểm, phụ trách hoặc an toàn."
+        description="Xem lịch theo tháng và cảnh báo sớm những sự kiện còn thiếu địa điểm, người phụ trách hoặc phương án an toàn."
         actions={
           <>
             <Button icon={<Printer size={15} aria-hidden />} onClick={() => window.print()}>
@@ -218,97 +232,180 @@ function CalendarPageInner() {
       />
 
       <Toolbar>
-        <Button
-          size="sm"
-          aria-label="Tháng trước"
-          onClick={() => setCursor(new Date(year, month - 1, 1))}
-        >
-          <ChevronLeft size={15} aria-hidden />
-        </Button>
-        <strong className="text-[13px]">
-          Tháng {month + 1}/{year}
-        </strong>
-        <Button size="sm" aria-label="Tháng sau" onClick={() => setCursor(new Date(year, month + 1, 1))}>
-          <ChevronRight size={15} aria-hidden />
-        </Button>
+        <div className="flex items-center gap-1">
+          <IconButton
+            size="sm"
+            aria-label="Tháng trước"
+            title="Tháng trước"
+            onClick={() => setCursor(new Date(year, month - 1, 1))}
+          >
+            <ChevronLeft size={15} aria-hidden />
+          </IconButton>
+          <strong className="min-w-[112px] text-center text-base tabular-nums text-ink">
+            Tháng {month + 1}/{year}
+          </strong>
+          <IconButton
+            size="sm"
+            aria-label="Tháng sau"
+            title="Tháng sau"
+            onClick={() => setCursor(new Date(year, month + 1, 1))}
+          >
+            <ChevronRight size={15} aria-hidden />
+          </IconButton>
+        </div>
+
         <Button size="sm" onClick={() => setCursor(new Date())}>
-          Hôm nay
+          Về tháng này
         </Button>
-        <span className="ml-auto text-[12px] text-muted">
-          {events.length} sự kiện trong phạm vi dữ liệu
+
+        <span className="ml-auto whitespace-nowrap text-xs text-neutral-500">
+          <strong className="tabular-nums text-ink">{events.length}</strong> sự kiện trong phạm vi
+          dữ liệu
         </span>
       </Toolbar>
 
       {error ? <ErrorState error={error} onRetry={() => void refetch()} /> : null}
-      {loading && !data ? <LoadingState /> : null}
+      {loading && !data ? <CardSkeleton lines={8} /> : null}
 
       {!error && data ? (
-        <div className="overflow-hidden rounded-card border border-line bg-card">
-          <div className="grid grid-cols-7 border-b border-line bg-[#f7fafd]">
-            {WEEKDAYS.map((day) => (
-              <div key={day} className="px-2 py-1.5 text-center text-[11.5px] font-bold text-muted">
-                {day}
+        <div className="overflow-hidden rounded-lg border border-line bg-card shadow-xs">
+          {/* Hàng tiêu đề thứ trong tuần — tuần bắt đầu từ Thứ Hai. */}
+          <div className="grid grid-cols-7 border-b border-line bg-neutral-50">
+            {WEEKDAYS.map((day, index) => (
+              <div
+                key={day}
+                className={cx(
+                  'px-2 py-2 text-center text-2xs font-bold uppercase tracking-[0.05em]',
+                  index >= 5 ? 'text-brand-600' : 'text-neutral-500',
+                )}
+              >
+                <span className="mobile:hidden">{day}</span>
+                <span className="hidden mobile:inline">{day.replace('Thứ ', 'T')}</span>
               </div>
             ))}
           </div>
+
           <div className="grid grid-cols-7">
-            {cells.map((cell) => {
+            {cells.map((cell, index) => {
               const iso = isoOf(cell);
               const outside = cell.getMonth() !== month;
+              const weekend = index % 7 >= 5;
+              const isToday = iso === today;
               const dayEvents = byDate.get(iso) ?? [];
+              // Giới hạn 3 sự kiện hiển thị để ô ngày không cao vồng lên.
+              const visible = dayEvents.slice(0, 3);
+              const hidden = dayEvents.length - visible.length;
+
               return (
                 <div
                   key={iso}
                   className={cx(
-                    'min-h-[92px] border-b border-r border-line p-1 last:border-r-0',
-                    outside && 'bg-[#fafbfc] text-muted',
-                    iso === today && 'bg-blue-soft',
+                    'group relative min-h-[104px] border-b border-r border-line p-1.5 transition-colors mobile:min-h-[76px] [&:nth-child(7n)]:border-r-0',
+                    outside ? 'bg-neutral-25' : weekend ? 'bg-brand-50/30' : 'bg-card',
+                    isToday && 'bg-brand-50',
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={cx('text-[12px] font-semibold', iso === today && 'text-blue')}>
+                    <span
+                      className={cx(
+                        'grid h-6 min-w-[24px] place-items-center rounded-full px-1 text-xs font-semibold tabular-nums',
+                        isToday
+                          ? 'bg-brand-600 text-white'
+                          : outside
+                            ? 'text-neutral-300'
+                            : 'text-neutral-600',
+                      )}
+                    >
                       {cell.getDate()}
                     </span>
                     <button
                       type="button"
                       onClick={() => openNew(iso)}
                       aria-label={`Thêm sự kiện ngày ${fmtDate(iso)}`}
-                      className="text-muted opacity-0 transition-opacity hover:text-blue focus:opacity-100 group-hover:opacity-100 [div:hover>div>&]:opacity-100"
+                      title={`Thêm sự kiện ngày ${fmtDate(iso)}`}
+                      className="grid h-6 w-6 place-items-center rounded-sm text-neutral-400 opacity-0 transition-all hover:bg-brand-100 hover:text-brand-700 focus:opacity-100 group-hover:opacity-100 mobile:opacity-100"
                     >
                       <Plus size={13} aria-hidden />
                     </button>
                   </div>
+
                   <div className="mt-1 space-y-1">
-                    {dayEvents.map((event) => (
+                    {visible.map((event) => {
+                      // Sự kiện thiếu thông tin bắt buộc được đánh dấu để xử lý sớm.
+                      const incomplete = !event.location || !event.leader || !event.safety;
+                      return (
+                        <button
+                          key={event.id}
+                          type="button"
+                          onClick={() => openEdit(event)}
+                          title={`${event.title}${incomplete ? ' — còn thiếu thông tin' : ''}`}
+                          className={cx(
+                            'flex w-full items-center gap-1 rounded-sm border-l-[3px] px-1.5 py-[3px] text-left text-2xs font-medium transition-colors',
+                            incomplete
+                              ? 'border-warning-500 bg-warning-50 text-warning-700 hover:bg-warning-100'
+                              : 'border-brand-600 bg-brand-50 text-brand-800 hover:bg-brand-100',
+                          )}
+                        >
+                          {event.time ? (
+                            <span className="shrink-0 tabular-nums opacity-75">{event.time}</span>
+                          ) : null}
+                          <span className="min-w-0 flex-1 truncate">{event.title}</span>
+                        </button>
+                      );
+                    })}
+
+                    {hidden > 0 ? (
                       <button
-                        key={event.id}
                         type="button"
-                        onClick={() => openEdit(event)}
-                        title={event.title}
-                        className="block w-full truncate rounded-[4px] bg-blue px-1.5 py-[2px] text-left text-[11px] text-white hover:bg-blue-dark"
+                        onClick={() => openEdit(dayEvents[visible.length]!)}
+                        className="w-full rounded-sm px-1.5 py-[2px] text-left text-2xs font-semibold text-brand-700 hover:bg-brand-50"
                       >
-                        {event.time ? `${event.time} ` : ''}
-                        {event.title}
+                        +{hidden} sự kiện nữa
                       </button>
-                    ))}
+                    ) : null}
                   </div>
                 </div>
               );
             })}
+          </div>
+
+          {/* Chú giải màu — trạng thái không chỉ phân biệt bằng màu sắc. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line bg-neutral-25 px-3 py-2 text-2xs text-neutral-500">
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden className="h-2.5 w-1 rounded-sm bg-brand-600" />
+              Sự kiện đã đủ thông tin
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden className="h-2.5 w-1 rounded-sm bg-warning-500" />
+              Còn thiếu địa điểm, phụ trách hoặc phương án an toàn
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Badge tone="blue" className="px-1.5 py-0">
+                Hôm nay
+              </Badge>
+              Ngày hiện tại được tô nền xanh nhạt
+            </span>
           </div>
         </div>
       ) : null}
 
       <Modal
         open={formOpen}
-        title={editingId ? 'Cập nhật lịch' : 'Thêm lịch hoạt động'}
+        title={editingId ? 'Cập nhật lịch hoạt động' : 'Thêm lịch hoạt động'}
+        description="Sự kiện theo ngày, kèm địa điểm, người phụ trách và phương án an toàn."
+        icon={<CalendarPlus size={18} aria-hidden />}
+        size="lg"
         onClose={() => setFormOpen(false)}
-        wide
         footer={
           <>
             {editingId ? (
-              <Button variant="danger" onClick={() => setDeleting(true)} className="mr-auto">
-                Xóa
+              <Button
+                variant="ghost"
+                icon={<Trash2 size={15} aria-hidden />}
+                onClick={() => setDeleting(true)}
+                className="mr-auto text-danger-600 hover:bg-danger-50 hover:text-danger-700"
+              >
+                Xóa sự kiện
               </Button>
             ) : null}
             <Button onClick={() => setFormOpen(false)} disabled={saving}>
@@ -321,6 +418,8 @@ function CalendarPageInner() {
         }
       >
         <div className="form-grid">
+          <FormSection title="Thông tin sự kiện" />
+
           <Field label="Tên sự kiện" required full>
             <TextInput
               value={values.title}
@@ -329,19 +428,20 @@ function CalendarPageInner() {
             />
           </Field>
           <Field label="Ngày" required>
-            <TextInput
-              type="date"
+            <DateInput
               value={values.date}
-              onChange={(e) => setValues((c) => ({ ...c, date: e.target.value }))}
+              onValueChange={(date) => setValues((c) => ({ ...c, date }))}
+              required
             />
           </Field>
           <Field label="Giờ">
-            <TextInput
-              type="time"
+            <TimeInput
               value={values.time}
-              onChange={(e) => setValues((c) => ({ ...c, time: e.target.value }))}
+              onValueChange={(time) => setValues((c) => ({ ...c, time }))}
             />
           </Field>
+          <FormSection title="Tổ chức và an toàn" />
+
           <Field label="Địa điểm">
             <TextInput
               value={values.location}
@@ -402,7 +502,16 @@ function CalendarPageInner() {
         title="Xóa sự kiện"
         loading={deletingBusy}
         confirmLabel="Xóa"
-        description="Sự kiện sẽ được xóa mềm và vẫn còn trong nhật ký."
+        description={
+          <>
+            <p className="m-0">
+              Xóa sự kiện <strong className="text-ink">{values.title || 'đã chọn'}</strong> khỏi lịch?
+            </p>
+            <Notice tone="warn" className="mt-2.5">
+              Sự kiện được xóa mềm và vẫn còn trong nhật ký hệ thống.
+            </Notice>
+          </>
+        }
         onCancel={() => setDeleting(false)}
         onConfirm={() => void remove()}
       />

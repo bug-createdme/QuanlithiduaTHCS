@@ -1,5 +1,6 @@
 'use client';
 
+import { Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { cx } from '@/lib/format';
@@ -7,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useScope } from '@/hooks/useScope';
 import { Button, LoadingState, Notice } from '@/components/ui';
 import { Modal } from '@/components/ui/Modal';
+import { NAV_ITEMS } from '@/lib/navigation';
 import { LockScreen } from './LockScreen';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
@@ -14,13 +16,28 @@ import { Topbar } from './Topbar';
 const SIDEBAR_KEY = 'tpt:sidebar-collapsed';
 
 /** Lối tắt "Thêm nhanh" — đúng danh sách của showQuickAdd() bản gốc. */
-const QUICK_ADD_ITEMS: Array<{ href: string; label: string; hint: string }> = [
-  { href: '/tasks?new=1', label: 'Công việc', hint: 'Đầu việc có hạn và checklist' },
-  { href: '/calendar?new=1', label: 'Lịch hoạt động', hint: 'Sự kiện theo ngày' },
-  { href: '/activities?new=1', label: 'Hoạt động Đội', hint: 'Kèm phương án an toàn' },
-  { href: '/plans?new=1', label: 'Kế hoạch', hint: 'Năm, kỳ, tháng hoặc tuần' },
-  { href: '/documents?new=1', label: 'Hồ sơ – minh chứng', hint: 'Tải tệp và gắn thẻ' },
-  { href: '/commendations?new=1', label: 'Khen thưởng', hint: 'Tập thể hoặc cá nhân' },
+const QUICK_ADD_ITEMS: Array<{ href: string; nav: string; label: string; hint: string }> = [
+  { href: '/tasks?new=1', nav: '/tasks', label: 'Công việc', hint: 'Đầu việc có hạn và checklist' },
+  { href: '/calendar?new=1', nav: '/calendar', label: 'Lịch hoạt động', hint: 'Sự kiện theo ngày' },
+  {
+    href: '/activities?new=1',
+    nav: '/activities',
+    label: 'Hoạt động Đội',
+    hint: 'Kèm phương án an toàn',
+  },
+  { href: '/plans?new=1', nav: '/plans', label: 'Kế hoạch', hint: 'Năm, kỳ, tháng hoặc tuần' },
+  {
+    href: '/documents?new=1',
+    nav: '/documents',
+    label: 'Hồ sơ – minh chứng',
+    hint: 'Tải tệp và gắn thẻ',
+  },
+  {
+    href: '/commendations?new=1',
+    nav: '/commendations',
+    label: 'Khen thưởng',
+    hint: 'Tập thể hoặc cá nhân',
+  },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -75,60 +92,93 @@ export function AppShell({ children }: { children: ReactNode }) {
       className={cx(
         'grid h-full',
         // Mobile-first — nền là điện thoại: một cột, điều hướng nằm dưới đáy.
-        'grid-cols-1 grid-rows-[58px_minmax(0,1fr)_calc(70px+env(safe-area-inset-bottom))]',
-        // ≥521px: thanh bên dọc chỉ hiện biểu tượng, rộng 64px.
-        'sm:grid-cols-[64px_1fr] sm:grid-rows-[62px_minmax(0,1fr)]',
-        // ≥851px: thanh bên đầy đủ 248px, thu còn 64px khi người dùng bấm thu gọn.
-        collapsed ? 'md:grid-cols-[64px_1fr]' : 'md:grid-cols-[248px_1fr]',
+        'grid-cols-1 grid-rows-[58px_minmax(0,1fr)_calc(68px+env(safe-area-inset-bottom))]',
+        // ≥521px: thanh bên dọc chỉ hiện biểu tượng, rộng 68px.
+        'sm:grid-cols-[68px_1fr] sm:grid-rows-[64px_minmax(0,1fr)]',
+        // ≥851px: thanh bên đầy đủ 260px, thu còn 68px khi người dùng bấm thu gọn.
+        collapsed ? 'md:grid-cols-[68px_1fr]' : 'md:grid-cols-[260px_1fr]',
       )}
     >
-      <Sidebar collapsed={collapsed} />
-      <Topbar
-        collapsed={collapsed}
-        onToggleSidebar={toggleSidebar}
-        onQuickAdd={() => setQuickAddOpen(true)}
-      />
+      {/* Bỏ qua điều hướng — phím Tab đầu tiên nhảy thẳng tới nội dung. */}
+      <a
+        href="#content"
+        className="sr-only-focusable fixed left-3 top-3 z-[100] rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-lg"
+      >
+        Bỏ qua điều hướng, tới nội dung chính
+      </a>
+
+      <Sidebar collapsed={collapsed} onToggleCollapse={toggleSidebar} />
+      <Topbar onQuickAdd={() => setQuickAddOpen(true)} />
 
       <main
         id="content"
         tabIndex={-1}
-        className="col-start-1 row-start-2 min-w-0 overflow-auto bg-canvas p-2.5 outline-none sm:col-start-2 md:p-3.5"
+        className="col-start-1 row-start-2 min-w-0 overflow-auto bg-canvas outline-none sm:col-start-2"
       >
-        {scope.ready && scope.years.length === 0 ? (
-          <Notice tone="warn" className="mb-3">
-            <strong className="block">Chưa có năm học nào.</strong>
-            Hãy mở <b>Thiết lập → Cơ sở – năm học</b> để tạo năm học trước khi nhập dữ liệu.
-          </Notice>
-        ) : null}
+        {/*
+          Giới hạn bề ngang ở màn hình rất rộng (≥1700px): bảng dài tới 1900px
+          khiến mắt phải quét quá xa giữa cột đầu và cột cuối.
+        */}
+        <div className="mx-auto w-full max-w-[1680px] px-3 py-3.5 md:px-5 md:py-5">
+          {scope.ready && scope.years.length === 0 ? (
+            <Notice tone="warn" title="Chưa có năm học nào." className="mb-4">
+              Hãy mở <b>Thiết lập → Cơ sở – năm học</b> để tạo năm học trước khi nhập dữ liệu.
+            </Notice>
+          ) : null}
 
-        {children}
+          {/*
+            Chỉ làm mờ dần. TUYỆT ĐỐI không dùng `transform` ở đây: một phần tử có
+            transform sẽ trở thành containing block cho mọi hậu duệ `position: fixed`,
+            khiến toàn bộ modal của trang bị định vị sai — căn theo khối nội dung
+            thay vì theo khung nhìn.
+          */}
+          <div className="animate-fade-in">{children}</div>
 
-        <footer className="mt-6 border-t border-line pt-2 text-center text-[11px] text-muted">
-          Trợ lý Tổng phụ trách Đội THCS • Dữ liệu lưu trên PostgreSQL
-        </footer>
+          <footer className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-xs text-neutral-400">
+            <span>Trợ lý Tổng phụ trách Đội THCS</span>
+            <span>Dữ liệu lưu tập trung trên PostgreSQL</span>
+          </footer>
+        </div>
       </main>
 
       <Modal
         open={quickAddOpen}
         title="Thêm nhanh"
+        description="Chọn loại bản ghi cần tạo; hệ thống mở sẵn biểu mẫu tương ứng."
+        icon={<Zap size={18} aria-hidden />}
         onClose={() => setQuickAddOpen(false)}
         footer={<Button onClick={() => setQuickAddOpen(false)}>Đóng</Button>}
       >
         <div className="grid grid-cols-2 gap-2 mobile:grid-cols-1">
-          {QUICK_ADD_ITEMS.map((item) => (
-            <button
-              key={item.href}
-              type="button"
-              onClick={() => {
-                setQuickAddOpen(false);
-                router.push(item.href);
-              }}
-              className="rounded-control border border-line bg-white px-3 py-2.5 text-left transition-colors hover:border-blue hover:bg-blue-soft"
-            >
-              <strong className="block text-[13px]">{item.label}</strong>
-              <span className="text-[11.5px] text-muted">{item.hint}</span>
-            </button>
-          ))}
+          {QUICK_ADD_ITEMS.map((item) => {
+            const Icon = NAV_ITEMS.find((nav) => nav.href === item.nav)?.icon;
+            return (
+              <button
+                key={item.href}
+                type="button"
+                onClick={() => {
+                  setQuickAddOpen(false);
+                  router.push(item.href);
+                }}
+                className="flex items-start gap-3 rounded-md border border-line bg-white p-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-50 hover:shadow-sm"
+              >
+                {Icon ? (
+                  <span
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-brand-50 text-brand-600"
+                    aria-hidden
+                  >
+                    <Icon size={17} />
+                  </span>
+                ) : null}
+                <span className="min-w-0">
+                  <strong className="block text-base text-ink">{item.label}</strong>
+                  <span className="mt-0.5 block text-xs leading-snug text-neutral-500">
+                    {item.hint}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </Modal>
     </div>

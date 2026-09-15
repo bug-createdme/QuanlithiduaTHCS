@@ -43,6 +43,79 @@ export function toDateInput(value: string | null | undefined): string {
   return value.length > 10 ? value.slice(0, 10) : value;
 }
 
+/**
+ * 'YYYY-MM-DD' → 'dd/MM/yyyy'.
+ *
+ * Dùng cho ô nhập ngày tự vẽ. KHÔNG dùng `<input type="date">` của trình duyệt
+ * vì Chrome hiển thị theo ngôn ngữ giao diện của máy (thường là mm/dd/yyyy),
+ * không theo `lang="vi"` của tài liệu — giáo viên nhìn thấy sai thứ tự ngày/tháng.
+ */
+export function isoToDateText(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!match) return '';
+  const [, year, month, day] = match;
+  return `${day}/${month}/${year}`;
+}
+
+/**
+ * 'dd/MM/yyyy' → 'YYYY-MM-DD'; trả null nếu không phải ngày có thật.
+ * Kiểm tra khứ hồi qua đối tượng Date nên loại được 31/02, 31/04…
+ */
+export function dateTextToIso(text: string): string | null {
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text.trim());
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** Chèn dấu "/" trong lúc gõ để người dùng không phải tự gõ dấu phân cách. */
+export function maskDateText(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+/**
+ * Chuẩn hóa chuỗi giờ về `HH:mm` 24 giờ; trả null nếu không phải giờ có thật.
+ *
+ * Giống ô ngày, `<input type="time">` của trình duyệt hiển thị theo ngôn ngữ
+ * hệ điều hành — máy cài tiếng Anh hiện `03:04 PM`, trong khi nhà trường dùng
+ * giờ 24. Giá trị lưu xuống cơ sở dữ liệu vẫn là `HH:mm` như trước.
+ */
+export function normalizeTimeText(text: string): string | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(text.trim());
+  if (!match) return null;
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+/** Chèn dấu ":" trong lúc gõ giờ. */
+export function maskTimeText(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
+
 export function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00`);
   d.setDate(d.getDate() + days);

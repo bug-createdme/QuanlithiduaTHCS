@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, CalendarPlus, Lock, Plus } from 'lucide-react';
+import { Building2, CalendarPlus, Info, Lock, Plus } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,6 +17,7 @@ import {
   CardBody,
   CardHead,
   Checkbox,
+  DateInput,
   Field,
   LinkButton,
   LoadingState,
@@ -222,7 +223,7 @@ export function AcademicPanel() {
                       <strong>{campus.name}</strong>
                     </td>
                     <td>
-                      <code className="text-[11px]">{campus.code}</code>
+                      <code className="text-2xs">{campus.code}</code>
                     </td>
                     <td>{campus._count?.classes ?? 0}</td>
                     <td>
@@ -334,9 +335,9 @@ export function AcademicPanel() {
 
       <div className="mt-3 grid grid-cols-2 gap-3 tablet:grid-cols-1">
         <Card>
-          <CardHead title="Quy tắc tạo năm" />
+          <CardHead title="Quy tắc tạo năm" icon={<Info size={16} aria-hidden />} />
           <CardBody>
-            <ul className="m-0 list-disc space-y-1 pl-5 text-[12.5px]">
+            <ul className="m-0 list-disc space-y-1 pl-5 text-sm">
               <li>Tạo mới học kỳ và 40 tuần theo ngày bắt đầu.</li>
               <li>Chỉ sao chép lớp và bộ tiêu chí khi được chọn.</li>
               <li>Không sao chép điểm, xếp hạng, hoạt động, công việc đã phát sinh hay báo cáo cũ.</li>
@@ -344,9 +345,9 @@ export function AcademicPanel() {
           </CardBody>
         </Card>
         <Card>
-          <CardHead title="Quy tắc đóng năm" />
+          <CardHead title="Quy tắc đóng năm" icon={<Info size={16} aria-hidden />} />
           <CardBody>
-            <ul className="m-0 list-disc space-y-1 pl-5 text-[12.5px]">
+            <ul className="m-0 list-disc space-y-1 pl-5 text-sm">
               <li>Kiểm tra bảng điểm chưa khóa, việc chưa xong và báo cáo nháp.</li>
               <li>Tạo điểm khôi phục bảo vệ trước khi đóng.</li>
               <li>Sau khi đóng, bản ghi năm cũ chuyển sang chỉ đọc.</li>
@@ -395,8 +396,9 @@ export function AcademicPanel() {
       <Modal
         open={yearOpen}
         title="Tạo năm học mới"
+        description="Hệ thống sẽ sinh sẵn học kỳ và danh sách tuần theo khoảng thời gian đã nhập."
         onClose={() => setYearOpen(false)}
-        wide
+        size="lg"
         footer={
           <>
             <Button onClick={() => setYearOpen(false)}>Hủy</Button>
@@ -414,23 +416,24 @@ export function AcademicPanel() {
             />
           </Field>
           <Field label="Ngày bắt đầu" required>
-            <TextInput
-              type="date"
+            <DateInput
               value={yearForm.startDate}
-              onChange={(e) => setYearForm({ ...yearForm, startDate: e.target.value })}
+              onValueChange={(startDate) => setYearForm({ ...yearForm, startDate })}
+              required
             />
           </Field>
           <Field label="Ngày kết thúc" required>
-            <TextInput
-              type="date"
+            <DateInput
               value={yearForm.endDate}
-              onChange={(e) => setYearForm({ ...yearForm, endDate: e.target.value })}
+              min={yearForm.startDate || undefined}
+              onValueChange={(endDate) => setYearForm({ ...yearForm, endDate })}
+              required
             />
           </Field>
         </div>
 
         <fieldset className="mt-3 rounded-control border border-line p-3">
-          <legend className="px-1 text-[12px] font-semibold text-muted">
+          <legend className="px-1 text-xs font-semibold text-muted">
             Sao chép có chọn lọc từ {scope.currentYear?.name ?? 'năm hiện tại'}
           </legend>
           <div className="space-y-2">

@@ -50,6 +50,81 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/settings', label: 'Thiết lập', short: 'Thiết lập', icon: Settings },
 ];
 
+/**
+ * Thanh bên gom 16 mục trên thành 6 nhóm nghiệp vụ.
+ *
+ * Một danh sách phẳng 16 dòng buộc người dùng đọc hết mới tìm ra chức năng;
+ * chia nhóm theo đúng cách công việc của Tổng phụ trách được tổ chức thì mắt
+ * chỉ phải quét trong một nhóm 2–3 mục. Thứ tự và nội dung NAV_ITEMS không đổi,
+ * đây chỉ là cách trình bày lại.
+ */
+export interface NavGroup {
+  id: string;
+  label: string;
+  /** Nhãn cực ngắn cho thanh bên thu gọn (64px). */
+  short: string;
+  items: NavItem[];
+}
+
+const byHref = (href: string): NavItem => {
+  const item = NAV_ITEMS.find((entry) => entry.href === href);
+  if (!item) throw new Error(`Thiếu mục điều hướng cho ${href}`);
+  return item;
+};
+
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    id: 'operate',
+    label: 'Điều hành hằng ngày',
+    short: 'Điều hành',
+    items: [byHref('/dashboard'), byHref('/today'), byHref('/calendar')],
+  },
+  {
+    id: 'plan',
+    label: 'Kế hoạch và công việc',
+    short: 'Kế hoạch',
+    items: [byHref('/plans'), byHref('/tasks')],
+  },
+  {
+    id: 'competition',
+    label: 'Thi đua và rèn luyện',
+    short: 'Thi đua',
+    items: [byHref('/scores'), byHref('/programs'), byHref('/commendations')],
+  },
+  {
+    id: 'team',
+    label: 'Hoạt động và tổ chức Đội',
+    short: 'Đội',
+    items: [byHref('/activities'), byHref('/organization'), byHref('/equipment')],
+  },
+  {
+    id: 'archive',
+    label: 'Hồ sơ và báo cáo',
+    short: 'Hồ sơ',
+    items: [byHref('/documents'), byHref('/reports'), byHref('/assistant')],
+  },
+  {
+    id: 'system',
+    label: 'Hệ thống',
+    short: 'Hệ thống',
+    items: [byHref('/backup'), byHref('/settings')],
+  },
+];
+
+/** Mục điều hướng đang hoạt động ứng với đường dẫn hiện tại. */
+export function activeNavItem(pathname: string): NavItem | null {
+  return (
+    NAV_ITEMS.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)) ?? null
+  );
+}
+
+/** Nhóm chứa mục đang hoạt động — dùng cho breadcrumb ở thanh trên cùng. */
+export function activeNavGroup(pathname: string): NavGroup | null {
+  const item = activeNavItem(pathname);
+  if (!item) return null;
+  return NAV_GROUPS.find((group) => group.items.includes(item)) ?? null;
+}
+
 /** 14 nhóm thiết lập, đúng thứ tự SETTINGS_TABS của bản gốc. */
 export const SETTINGS_TABS = [
   { id: 'school', label: 'Thông tin trường' },

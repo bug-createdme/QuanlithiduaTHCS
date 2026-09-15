@@ -253,7 +253,7 @@ export function ConfigCategoryPanel({ categoryKeys }: { categoryKeys: string[] }
                         </td>
                         <td className="wrap">{item.label}</td>
                         <td>
-                          <code className="text-[11px]">{item.code}</code>
+                          <code className="text-2xs">{item.code}</code>
                         </td>
                         <td>
                           {item.active ? (
@@ -382,10 +382,10 @@ export function ConfigCategoryPanel({ categoryKeys }: { categoryKeys: string[] }
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
           </Field>
-          <label className="flex items-center gap-2 text-[13px]">
+          <label className="flex items-center gap-2 text-base">
             <input
               type="checkbox"
-              className="h-[15px] w-[15px] accent-[#0b6bcb]"
+              className="h-[16px] w-[16px] cursor-pointer accent-brand-600"
               checked={form.active}
               onChange={(e) => setForm({ ...form, active: e.target.checked })}
             />

@@ -293,19 +293,19 @@ export function CustomFieldPanel({ entity }: { entity: string }) {
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
           </Field>
-          <label className="flex items-center gap-2 text-[13px]">
+          <label className="flex items-center gap-2 text-base">
             <input
               type="checkbox"
-              className="h-[15px] w-[15px] accent-[#0b6bcb]"
+              className="h-[16px] w-[16px] cursor-pointer accent-brand-600"
               checked={form.required}
               onChange={(e) => setForm({ ...form, required: e.target.checked })}
             />
             Bắt buộc
           </label>
-          <label className="flex items-center gap-2 text-[13px]">
+          <label className="flex items-center gap-2 text-base">
             <input
               type="checkbox"
-              className="h-[15px] w-[15px] accent-[#0b6bcb]"
+              className="h-[16px] w-[16px] cursor-pointer accent-brand-600"
               checked={form.active}
               onChange={(e) => setForm({ ...form, active: e.target.checked })}
             />

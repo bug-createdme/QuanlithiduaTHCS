@@ -1,30 +1,32 @@
 'use client';
 
-import { Download, Plus } from 'lucide-react';
+import { Download, FilterX, Inbox, PanelRightOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useApiList, useDebounced } from '@/hooks/useApiQuery';
 import { useScope } from '@/hooks/useScope';
 import { useToast } from '@/hooks/useToast';
-import { fmtDate } from '@/lib/format';
+import { cx, fmtDate } from '@/lib/format';
 import { statusLabel } from '@/lib/labels';
 import { api } from '@/services/api';
 import type { BaseRecord } from '@/types';
 import {
   Button,
   ErrorState,
-  LinkButton,
   LoadingState,
   Notice,
   PageHead,
   Pagination,
+  ProgressBar,
+  SearchInput,
   Select,
   StatusBadge,
   TableEmptyRow,
+  TableSkeleton,
   TableWrap,
-  TextInput,
   Toolbar,
 } from '@/components/ui';
+import { Menu, MenuItem, MenuSeparator } from '@/components/ui/Menu';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { EntityForm } from './EntityForm';
 import type { EntityConfig } from './entity.config';
@@ -64,6 +66,7 @@ export function EntityPage({ config, rowDetail }: { config: EntityConfig; rowDet
   const [detailRow, setDetailRow] = useState<Row | null>(null);
 
   const debouncedSearch = useDebounced(search, 200);
+  const hasFilter = debouncedSearch.trim() !== '' || campusFilter !== 'all';
 
   const params = useMemo(
     () => ({
@@ -116,16 +119,38 @@ export function EntityPage({ config, rowDetail }: { config: EntityConfig; rowDet
     }
   }, [config.endpoint, config.key, params, toast, toastError]);
 
+  const openCreate = useCallback(() => {
+    setEditingId(null);
+    setFormOpen(true);
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setSearch('');
+    setCampusFilter('all');
+  }, []);
+
   const renderCell = (row: Row, column: EntityConfig['columns'][number]) => {
     const value = row[column.key];
     if (column.render === 'status') return <StatusBadge value={value as string} />;
     if (column.render === 'date') return fmtDate(value as string);
-    if (column.render === 'percent') return `${Number(value ?? 0)}%`;
-    if (value === null || value === undefined || value === '') return '—';
+    if (column.render === 'percent') {
+      const percent = Number(value ?? 0);
+      return (
+        <span className="flex items-center gap-2">
+          <ProgressBar value={percent} className="w-[64px]" label={`Tiến độ ${percent}%`} />
+          <span className="tabular-nums text-xs text-neutral-500">{percent}%</span>
+        </span>
+      );
+    }
+    if (value === null || value === undefined || value === '') {
+      return <span className="text-neutral-400">—</span>;
+    }
     return String(value);
   };
 
   if (!scope.ready) return <LoadingState />;
+
+  const columnCount = config.columns.length + 1;
 
   return (
     <>
@@ -137,14 +162,7 @@ export function EntityPage({ config, rowDetail }: { config: EntityConfig; rowDet
             <Button icon={<Download size={15} aria-hidden />} onClick={() => void exportCsv()}>
               Xuất CSV
             </Button>
-            <Button
-              variant="primary"
-              icon={<Plus size={15} aria-hidden />}
-              onClick={() => {
-                setEditingId(null);
-                setFormOpen(true);
-              }}
-            >
+            <Button variant="primary" icon={<Plus size={15} aria-hidden />} onClick={openCreate}>
               Thêm mới
             </Button>
           </>
@@ -152,11 +170,11 @@ export function EntityPage({ config, rowDetail }: { config: EntityConfig; rowDet
       />
 
       <Toolbar>
-        <TextInput
+        <SearchInput
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onValueChange={setSearch}
           placeholder={`Tìm trong ${config.title.toLowerCase()}…`}
-          className="min-w-[180px] flex-1"
+          className="min-w-[200px] flex-1"
           aria-label={`Tìm trong ${config.title}`}
         />
         <Select
@@ -172,53 +190,123 @@ export function EntityPage({ config, rowDetail }: { config: EntityConfig; rowDet
             </option>
           ))}
         </Select>
-        <span className="ml-auto text-[12px] text-muted">{meta?.total ?? 0} bản ghi</span>
+
+        {hasFilter ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<FilterX size={14} aria-hidden />}
+            onClick={resetFilters}
+          >
+            Bỏ lọc
+          </Button>
+        ) : null}
+
+        <span className="ml-auto whitespace-nowrap text-xs text-neutral-500">
+          <strong className="tabular-nums text-ink">{meta?.total ?? 0}</strong> bản ghi
+        </span>
       </Toolbar>
 
       {error ? <ErrorState error={error} onRetry={() => void refetch()} /> : null}
 
       {loading && data.length === 0 && !error ? (
-        <LoadingState />
+        <TableSkeleton cols={columnCount} />
       ) : !error ? (
         <>
           <TableWrap>
             <thead>
               <tr>
                 {config.columns.map((column) => (
-                  <th key={column.key}>{column.label}</th>
+                  <th key={column.key} className={column.key === 'name' ? 'min-w-[220px]' : undefined}>
+                    {column.label}
+                  </th>
                 ))}
-                <th className={rowDetail ? 'w-[210px]' : 'w-[130px]'}>Thao tác</th>
+                <th className="w-[112px] text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {data.length === 0 ? (
-                <TableEmptyRow colSpan={config.columns.length + 1}>
-                  Chưa có bản ghi. Hãy chọn “Thêm mới”.
+                <TableEmptyRow
+                  colSpan={columnCount}
+                  action={
+                    hasFilter ? (
+                      <Button size="sm" icon={<FilterX size={14} aria-hidden />} onClick={resetFilters}>
+                        Bỏ bộ lọc
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        icon={<Plus size={14} aria-hidden />}
+                        onClick={openCreate}
+                      >
+                        Thêm mới
+                      </Button>
+                    )
+                  }
+                >
+                  {hasFilter
+                    ? 'Không có bản ghi nào khớp bộ lọc hiện tại.'
+                    : `Chưa có ${config.title.toLowerCase()} nào trong phạm vi đang chọn.`}
                 </TableEmptyRow>
               ) : (
                 data.map((row) => (
                   <tr key={row.id}>
                     {config.columns.map((column) => (
-                      <td key={column.key} className={column.key === 'name' ? 'wrap' : undefined}>
+                      <td
+                        key={column.key}
+                        className={cx(
+                          column.key === 'name' && 'wrap',
+                          column.key === config.labelField && 'font-semibold text-ink',
+                        )}
+                      >
                         {renderCell(row, column)}
                       </td>
                     ))}
-                    <td>
-                      <div className="flex flex-wrap gap-2.5">
-                        <LinkButton
+                    <td className="actions text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={<Pencil size={14} aria-hidden />}
+                          aria-label={`Sửa ${String(row[config.labelField] ?? 'bản ghi')}`}
                           onClick={() => {
                             setEditingId(row.id);
                             setFormOpen(true);
                           }}
                         >
                           Sửa
-                        </LinkButton>
-                        {rowDetail ? (
-                          <LinkButton onClick={() => setDetailRow(row)}>{rowDetail.label}</LinkButton>
-                        ) : null}
-                        <LinkButton tone="red" onClick={() => setDeleting(row)}>
-                          Xóa
-                        </LinkButton>
+                        </Button>
+                        <Menu label="Thao tác khác">
+                          {(close) => (
+                            <>
+                              {rowDetail ? (
+                                <>
+                                  <MenuItem
+                                    icon={<PanelRightOpen size={15} aria-hidden />}
+                                    onClick={() => {
+                                      close();
+                                      setDetailRow(row);
+                                    }}
+                                  >
+                                    {rowDetail.label}
+                                  </MenuItem>
+                                  <MenuSeparator />
+                                </>
+                              ) : null}
+                              <MenuItem
+                                danger
+                                icon={<Trash2 size={15} aria-hidden />}
+                                onClick={() => {
+                                  close();
+                                  setDeleting(row);
+                                }}
+                              >
+                                Xóa bản ghi
+                              </MenuItem>
+                            </>
+                          )}
+                        </Menu>
                       </div>
                     </td>
                   </tr>
@@ -254,18 +342,20 @@ export function EntityPage({ config, rowDetail }: { config: EntityConfig; rowDet
         open={deleting !== null}
         title="Xác nhận xóa"
         loading={deletingBusy}
-        confirmLabel="Xóa"
+        confirmLabel="Xóa bản ghi"
         description={
           <>
-            <Notice tone="danger" className="mb-2">
-              Bản ghi sẽ được xóa mềm và vẫn còn trong nhật ký. Không thể hoàn tác trực tiếp trên màn
-              hình này.
-            </Notice>
             <p className="m-0">
-              <strong>
-                {String(deleting?.[config.labelField] ?? statusLabel(null)) || 'Bản ghi đã chọn'}
-              </strong>
+              Xóa{' '}
+              <strong className="text-ink">
+                {String(deleting?.[config.labelField] ?? statusLabel(null)) || 'bản ghi đã chọn'}
+              </strong>{' '}
+              khỏi danh sách?
             </p>
+            <Notice tone="warn" className="mt-2.5">
+              Bản ghi được xóa mềm và vẫn còn trong nhật ký, nhưng không thể hoàn tác trực tiếp
+              trên màn hình này.
+            </Notice>
           </>
         }
         onCancel={() => setDeleting(null)}
@@ -275,7 +365,8 @@ export function EntityPage({ config, rowDetail }: { config: EntityConfig; rowDet
       {rowDetail && detailRow ? (
         <Modal
           open
-          wide
+          size="lg"
+          icon={<Inbox size={18} aria-hidden />}
           title={rowDetail.title(detailRow)}
           onClose={() => setDetailRow(null)}
           footer={<Button onClick={() => setDetailRow(null)}>Đóng</Button>}

@@ -5,13 +5,12 @@ import {
   ArrowRight,
   Award,
   BarChart3,
-  CheckCircle2,
   Clock,
   Eye,
   EyeOff,
+  Loader2,
   Lock,
   ShieldCheck,
-  Sparkles,
   User,
 } from 'lucide-react';
 import Image from 'next/image';
@@ -23,9 +22,31 @@ import { ApiError } from '@/services/api';
 
 /**
  * Trang đăng nhập hệ thống Quản lý Thi đua Nề nếp — Trường THCS Lệ Ninh.
- * Giao diện Dual-Pane kết hợp hình ảnh thực tế sân trường, nhận diện Liên đội
- * và biểu mẫu đăng nhập hiện đại với cơ chế bảo mật phía máy chủ.
+ *
+ * Bố cục hai cột: cột trái là nhận diện trường (ảnh sân trường + ba điểm giá
+ * trị của hệ thống), cột phải là biểu mẫu. Toàn bộ màu sắc, bo góc, cỡ chữ lấy
+ * từ design token chung nên trang này không còn là "một hòn đảo phong cách"
+ * tách rời phần còn lại của ứng dụng.
  */
+
+const HIGHLIGHTS = [
+  {
+    icon: Award,
+    title: 'Chấm điểm nề nếp',
+    text: 'Ghi nhận vi phạm, điểm cộng chuyên cần, vệ sinh và tác phong theo tuần.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Xếp hạng tự động',
+    text: 'Tính điểm và phân hạng chi đội theo tuần, học kỳ và năm học.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Số liệu có truy vết',
+    text: 'Lưu tập trung trên PostgreSQL, mọi điều chỉnh đều ghi nhật ký.',
+  },
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const { user, loading, login } = useAuth();
@@ -99,230 +120,183 @@ export default function LoginPage() {
     }
   };
 
+  const blocked = busy || waitSeconds > 0;
+
   return (
-    <div className="relative flex h-full min-h-screen w-full flex-col overflow-y-auto bg-[#051c38] md:flex-row md:overflow-hidden">
-      {/* ────────────────────────────────────────────────────────────
-          CỘT TRÁI (HERO PANE): Banner hình ảnh trường THCS Lệ Ninh
-          ──────────────────────────────────────────────────────────── */}
-      <div className="relative hidden w-full flex-col justify-between overflow-hidden p-8 text-white md:flex md:w-[55%] lg:w-[58%] lg:p-12 xl:w-[60%]">
-        {/* Hình nền ảnh thực tế của trường với bộ lọc tối ưu hiển thị chữ */}
+    <div className="flex h-full min-h-screen w-full flex-col overflow-y-auto bg-neutral-950 md:flex-row md:overflow-hidden">
+      {/* ══════════════════════════════════════════════════════════════
+          CỘT TRÁI — Nhận diện trường (ẩn dưới 851px)
+          ══════════════════════════════════════════════════════════════ */}
+      <section className="relative hidden w-full flex-col justify-between overflow-hidden p-10 text-white md:flex md:w-[52%] lg:w-[56%] lg:p-12">
         <div className="absolute inset-0 z-0">
           <Image
             src="/images/truong-thcs-le-ninh.jpg"
             alt="Sân trường THCS Lệ Ninh trong buổi lễ chào cờ"
             fill
             priority
-            sizes="(min-width: 851px) 60vw, 100vw"
-            className="object-cover object-center scale-105 transition-transform duration-1000 ease-out hover:scale-100"
+            sizes="(min-width: 851px) 56vw, 100vw"
+            className="object-cover object-center"
           />
-          {/* Lớp phủ chuyển màu (gradient overlay đa tầng) */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#04162e] via-[#082b52]/85 to-[#051c38]/75 backdrop-brightness-[0.85]" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#04162e]/90 via-transparent to-[#04162e]/40" />
-
-          {/* Vùng sáng trang trí ambient glow */}
-          <div className="pointer-events-none absolute right-0 top-0 h-96 w-96 rounded-full bg-amber-400/10 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-12 left-12 h-96 w-96 rounded-full bg-blue-500/15 blur-3xl" />
+          {/*
+            Hai lớp phủ: một lớp dọc để chân trang đọc được, một lớp ngang để
+            phần chữ bên trái luôn đạt tương phản ≥ 4.5:1 trên mọi khung ảnh.
+          */}
+          <div className="absolute inset-0 bg-gradient-to-t from-brand-950 via-brand-950/80 to-brand-950/55" />
+          <div className="absolute inset-0 bg-gradient-to-r from-brand-950/85 to-transparent" />
         </div>
 
-        {/* Khối đầu trang Hero (Header) */}
-        <div className="relative z-10">
-          <div className="flex items-center gap-3.5">
-            {/* Logo chính thức Trường THCS Lệ Ninh */}
-            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center drop-shadow-xl transition-transform duration-300 hover:scale-105">
-              <Image
-                src="/images/logo-thcs-le-ninh.png"
-                alt="Logo Trường THCS Lệ Ninh"
-                width={64}
-                height={64}
-                priority
-                className="h-full w-full object-contain"
-              />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-300">
-                <span>Phòng GD&ĐT Huyện Lệ Thủy</span>
-                <span className="inline-block h-1 w-1 rounded-full bg-amber-400" />
-                <span className="text-sky-200">Liên đội TNTP Hồ Chí Minh</span>
-              </div>
-              <h2 className="text-[18px] font-black uppercase tracking-tight text-white drop-shadow-md lg:text-[20px]">
-                Trường THCS Lệ Ninh
-              </h2>
-            </div>
-          </div>
-        </div>
-
-        {/* Khối giữa Hero: Khẩu hiệu & Giới thiệu tính năng */}
-        <div className="relative z-10 my-auto py-8">
-          {/* Huy hiệu khẩu hiệu lấy từ khán đài trường trong bức ảnh thực tế */}
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/15 px-3.5 py-1.5 text-[12px] font-semibold text-amber-300 backdrop-blur-md shadow-sm">
-            <Sparkles size={14} className="animate-pulse text-amber-400" />
-            <span>VỮNG BƯỚC TƯƠNG LAI • KỶ CƯƠNG — TÌNH THƯƠNG — TRÁCH NHIỆM</span>
-          </div>
-
-          <h1 className="text-3xl font-extrabold leading-tight text-white drop-shadow-md lg:text-4xl xl:text-[40px]">
-            Hệ Thống Quản Lý Thi Đua <br />
-            <span className="bg-gradient-to-r from-sky-300 via-blue-200 to-amber-200 bg-clip-text text-transparent">
-              Nề Nếp & Hoạt Động Đội
-            </span>
-          </h1>
-
-          <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-slate-200/90 lg:text-[14.5px]">
-            Giải pháp số hóa toàn diện dành cho Ban Giám hiệu, Tổng phụ trách Đội và Ban Chỉ huy
-            Liên đội THCS Lệ Ninh. Theo dõi chấm điểm Sao đỏ, tự động xếp hạng thi đua chi đội và
-            xuất báo cáo nề nếp minh bạch.
-          </p>
-
-          {/* 3 Thẻ tính năng mờ kính Glassmorphism */}
-          <div className="mt-8 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-            <div className="rounded-xl border border-white/15 bg-white/10 p-3.5 backdrop-blur-md transition-all duration-300 hover:border-white/25 hover:bg-white/15">
-              <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-amber-400/20 text-amber-300">
-                <Award size={18} />
-              </div>
-              <h3 className="text-[13px] font-bold text-white">Chấm điểm Nề nếp</h3>
-              <p className="mt-1 text-[11.5px] leading-snug text-slate-200/80">
-                Ghi nhận vi phạm, điểm cộng chuyên cần, vệ sinh và tác phong thời gian thực.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-white/15 bg-white/10 p-3.5 backdrop-blur-md transition-all duration-300 hover:border-white/25 hover:bg-white/15">
-              <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/20 text-emerald-300">
-                <BarChart3 size={18} />
-              </div>
-              <h3 className="text-[13px] font-bold text-white">Xếp hạng Tự động</h3>
-              <p className="mt-1 text-[11.5px] leading-snug text-slate-200/80">
-                Tính điểm và phân hạng chi đội theo tuần, tháng và học kỳ chuẩn xác, công bằng.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-white/15 bg-white/10 p-3.5 backdrop-blur-md transition-all duration-300 hover:border-white/25 hover:bg-white/15">
-              <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-sky-400/20 text-sky-300">
-                <CheckCircle2 size={18} />
-              </div>
-              <h3 className="text-[13px] font-bold text-white">Số hóa Dữ liệu</h3>
-              <p className="mt-1 text-[11.5px] leading-snug text-slate-200/80">
-                Lưu trữ tập trung trên PostgreSQL, xuất báo cáo tổng hợp phục vụ chào cờ đầu tuần.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Khối chân trang Hero */}
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/15 pt-4 text-[12px] text-slate-300/80">
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-            <span>Năm học 2025 — 2026 • Chuyển đổi số trường học</span>
-          </div>
-          <span className="text-[11px] text-slate-400">Phiên bản Web Quản trị v1.0</span>
-        </div>
-      </div>
-
-      {/* ────────────────────────────────────────────────────────────
-          CỘT PHẢI: Form Đăng nhập Quản trị Hiện đại
-          ──────────────────────────────────────────────────────────── */}
-      <div className="relative flex min-h-screen w-full flex-col justify-between overflow-y-auto bg-slate-50 p-6 pb-12 sm:p-10 md:w-[45%] md:min-h-full md:border-l md:border-slate-200 lg:w-[42%] lg:p-12 xl:w-[40%]">
-        {/* Nền ảnh trường trên thiết bị di động (khi màn hình hẹp ẩn cột trái) */}
-        <div className="absolute inset-0 z-0 block md:hidden">
-          <Image
-            src="/images/truong-thcs-le-ninh.jpg"
-            alt="Trường THCS Lệ Ninh"
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover object-center brightness-[0.22]"
-          />
-          <div className="absolute inset-0 bg-[#051c38]/90 backdrop-blur-sm" />
-        </div>
-
-        {/* Header trên Mobile */}
-        <div className="relative z-10 mb-6 flex items-center gap-3.5 md:hidden">
-          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center drop-shadow-lg">
+        {/* Đầu trang */}
+        <header className="relative z-10 flex items-center gap-3.5">
+          <span className="relative flex h-14 w-14 shrink-0 items-center justify-center drop-shadow-lg">
             <Image
               src="/images/logo-thcs-le-ninh.png"
-              alt="Logo THCS Lệ Ninh"
+              alt="Logo Trường THCS Lệ Ninh"
               width={56}
               height={56}
               priority
               className="h-full w-full object-contain"
             />
-          </div>
+          </span>
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
-              Phòng GD&ĐT Lệ Thủy
-            </span>
-            <h2 className="text-[17px] font-black uppercase text-white">THCS LỆ NINH</h2>
+            <p className="m-0 flex flex-wrap items-center gap-1.5 text-2xs font-bold uppercase tracking-[0.1em] text-brand-200">
+              <span>Phòng GD&amp;ĐT huyện Lệ Thủy</span>
+              <span aria-hidden className="h-1 w-1 rounded-full bg-brand-300" />
+              <span>Liên đội TNTP Hồ Chí Minh</span>
+            </p>
+            <p className="m-0 text-lg font-bold uppercase tracking-tight text-white">
+              Trường THCS Lệ Ninh
+            </p>
           </div>
+        </header>
+
+        {/* Khối giữa */}
+        <div className="relative z-10 my-auto py-10">
+          <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-semibold tracking-wide text-white backdrop-blur-sm">
+            Kỷ cương — Tình thương — Trách nhiệm
+          </p>
+
+          <h1 className="max-w-[18ch] text-4xl font-bold leading-[1.15] tracking-tight text-white text-balance">
+            Hệ thống quản lý thi đua nề nếp &amp; hoạt động Đội
+          </h1>
+
+          <p className="mt-4 max-w-[56ch] text-md leading-relaxed text-brand-100/90">
+            Công cụ số hóa dành cho Ban Giám hiệu, Tổng phụ trách Đội và Ban Chỉ huy Liên đội:
+            theo dõi chấm điểm Sao đỏ, xếp hạng chi đội và xuất báo cáo nề nếp minh bạch.
+          </p>
+
+          <ul className="mt-9 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-3">
+            {HIGHLIGHTS.map(({ icon: Icon, title, text }) => (
+              <li
+                key={title}
+                className="rounded-lg border border-white/15 bg-white/[0.08] p-3.5 backdrop-blur-sm"
+              >
+                <span
+                  className="mb-2.5 grid h-8 w-8 place-items-center rounded-md bg-white/15 text-white"
+                  aria-hidden
+                >
+                  <Icon size={17} />
+                </span>
+                <strong className="block text-sm font-bold text-white">{title}</strong>
+                <span className="mt-1 block text-xs leading-relaxed text-brand-100/85">{text}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* Khung Form Đăng nhập ở giữa */}
-        <div className="relative z-10 my-auto w-full max-w-[420px] self-center rounded-2xl border border-slate-200/80 bg-white p-7 shadow-xl shadow-slate-300/30 md:p-8">
-          {/* Logo & Tiêu đề biểu mẫu */}
-          <div className="mb-6 text-center md:text-left">
-            <div className="flex items-center justify-between gap-4">
-              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center drop-shadow-md transition-transform duration-300 hover:scale-105">
-                <Image
-                  src="/images/logo-thcs-le-ninh.png"
-                  alt="Logo Trường THCS Lệ Ninh"
-                  width={80}
-                  height={80}
-                  priority
-                  className="h-full w-full object-contain"
-                />
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <div className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11.5px] font-bold text-blue-800 shadow-sm">
-                  <span className="inline-block h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-                  <span>THCS LỆ NINH</span>
-                </div>
-                <span className="text-[11px] font-medium text-slate-400">Hệ thống Quản lý Thi đua</span>
-              </div>
-            </div>
+        {/* Chân trang */}
+        <footer className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/15 pt-4 text-xs text-brand-100/80">
+          <span>Năm học 2025 — 2026 • Chuyển đổi số trường học</span>
+          <span>Phiên bản Web Quản trị v1.0</span>
+        </footer>
+      </section>
 
-            <h2 className="mt-4 text-[21px] font-black tracking-tight text-slate-900 md:text-[23px]">
-              Cổng Đăng Nhập Quản Trị
-            </h2>
-            <p className="mt-1 text-[13px] text-slate-500">
-              Dành cho Ban Giám hiệu, Tổng phụ trách Đội & Ban Chỉ huy Liên đội.
+      {/* ══════════════════════════════════════════════════════════════
+          CỘT PHẢI — Biểu mẫu đăng nhập
+          ══════════════════════════════════════════════════════════════ */}
+      <section className="relative flex min-h-screen w-full flex-col justify-between overflow-y-auto bg-canvas p-5 pb-10 sm:p-8 md:min-h-full md:w-[48%] lg:w-[44%] lg:p-10">
+        {/* Nền ảnh trường khi màn hình hẹp (cột trái bị ẩn). */}
+        <div className="absolute inset-0 z-0 block md:hidden">
+          <Image
+            src="/images/truong-thcs-le-ninh.jpg"
+            alt=""
+            aria-hidden
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-brand-950/90" />
+        </div>
+
+        {/* Đầu trang trên điện thoại */}
+        <header className="relative z-10 mb-6 flex items-center gap-3 md:hidden">
+          <span className="relative flex h-12 w-12 shrink-0 items-center justify-center drop-shadow-md">
+            <Image
+              src="/images/logo-thcs-le-ninh.png"
+              alt="Logo THCS Lệ Ninh"
+              width={48}
+              height={48}
+              priority
+              className="h-full w-full object-contain"
+            />
+          </span>
+          <div>
+            <p className="m-0 text-2xs font-bold uppercase tracking-[0.1em] text-brand-200">
+              Phòng GD&amp;ĐT Lệ Thủy
+            </p>
+            <p className="m-0 text-md font-bold uppercase text-white">THCS Lệ Ninh</p>
+          </div>
+        </header>
+
+        {/* Thẻ biểu mẫu */}
+        <div className="relative z-10 my-auto w-full max-w-[420px] self-center rounded-xl border border-line bg-card p-6 shadow-lg sm:p-7">
+          <div className="mb-6">
+            <span
+              className="mb-4 grid h-12 w-12 place-items-center rounded-lg bg-brand-50 text-brand-600"
+              aria-hidden
+            >
+              <Lock size={22} />
+            </span>
+            <h2 className="m-0 text-2xl font-bold tracking-tight text-ink">Đăng nhập hệ thống</h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-neutral-500">
+              Dành cho Ban Giám hiệu, Tổng phụ trách Đội và Ban Chỉ huy Liên đội.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Trường: Tên đăng nhập */}
             <div>
-              <label
-                htmlFor="username"
-                className="mb-1.5 block text-[12.5px] font-semibold text-slate-700"
-              >
+              <label htmlFor="username" className="field-label field-label-required">
                 Tên đăng nhập
               </label>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-                  <User size={17} aria-hidden />
-                </div>
+                <User
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
+                  aria-hidden
+                />
                 <input
                   id="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
                   required
-                  disabled={busy || waitSeconds > 0}
-                  placeholder="Nhập tên đăng nhập..."
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3.5 text-[13.5px] font-medium text-slate-900 placeholder:text-slate-400 shadow-sm transition-all focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-600/10 disabled:bg-slate-50 disabled:text-slate-400"
+                  disabled={blocked}
+                  placeholder="Nhập tên đăng nhập"
+                  className="field-input h-control-lg pl-9"
                 />
               </div>
             </div>
 
-            {/* Trường: Mật khẩu */}
             <div>
-              <label
-                htmlFor="password"
-                className="mb-1.5 block text-[12.5px] font-semibold text-slate-700"
-              >
+              <label htmlFor="password" className="field-label field-label-required">
                 Mật khẩu
               </label>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-                  <Lock size={17} aria-hidden />
-                </div>
+                <Lock
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
+                  aria-hidden
+                />
                 <input
                   id="password"
                   ref={passwordRef}
@@ -331,98 +305,76 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
                   required
-                  disabled={busy || waitSeconds > 0}
-                  placeholder="••••••••"
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-11 text-[13.5px] font-medium text-slate-900 placeholder:text-slate-400 shadow-sm transition-all focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-600/10 disabled:bg-slate-50 disabled:text-slate-400"
+                  disabled={blocked}
+                  placeholder="Nhập mật khẩu"
+                  className="field-input h-control-lg pl-9 pr-11"
                 />
                 <button
                   type="button"
                   onClick={() => setReveal((v) => !v)}
                   aria-label={reveal ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 transition-colors hover:text-slate-700"
+                  className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
                 >
-                  {reveal ? <EyeOff size={17} /> : <Eye size={17} />}
+                  {reveal ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
                 </button>
               </div>
             </div>
 
-            {/* Trạng thái thông báo phản hồi (Lỗi / Đếm ngược / Hướng dẫn) */}
-            {error && status ? (
-              <div
-                role="alert"
-                className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-[12px] text-red-700 animate-fade-in"
-              >
-                <AlertCircle size={16} className="mt-0.5 shrink-0 text-red-600" aria-hidden />
-                <span className="font-medium leading-relaxed">{status}</span>
-              </div>
+            {/* Phản hồi: lỗi, đếm ngược chặn, hoặc dòng trấn an mặc định. */}
+            {error && status && waitSeconds <= 0 ? (
+              <p className="notice notice-danger m-0" role="alert">
+                <AlertCircle size={16} className="mt-[1px] shrink-0" aria-hidden />
+                <span className="flex-1">{status}</span>
+              </p>
             ) : waitSeconds > 0 ? (
-              <div
-                role="alert"
-                className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800 animate-fade-in"
-              >
-                <Clock size={16} className="mt-0.5 shrink-0 animate-spin text-amber-600" aria-hidden />
-                <span className="font-medium leading-relaxed">{status}</span>
-              </div>
+              <p className="notice notice-warn m-0" role="alert">
+                <Clock size={16} className="mt-[1px] shrink-0" aria-hidden />
+                <span className="flex-1">{status}</span>
+              </p>
             ) : (
-              <div className="flex items-center gap-2 text-[12px] text-slate-500">
-                <ShieldCheck size={15} className="shrink-0 text-emerald-600" aria-hidden />
-                <span>Phiên làm việc bảo mật cao. Ứng dụng không ghi nhớ mật khẩu.</span>
-              </div>
+              <p className="m-0 flex items-center gap-2 text-xs text-neutral-500">
+                <ShieldCheck size={15} className="shrink-0 text-success-600" aria-hidden />
+                Phiên làm việc bảo mật. Ứng dụng không ghi nhớ mật khẩu trên máy này.
+              </p>
             )}
 
-            {/* Nút Đăng nhập Gradient nổi bật */}
-            <button
-              type="submit"
-              disabled={busy || waitSeconds > 0}
-              className="group relative mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0a3764] via-[#0757a6] to-[#0b6bcb] text-[14px] font-semibold text-white shadow-lg shadow-blue-700/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-700/35 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-            >
+            <button type="submit" disabled={blocked} className="btn btn-primary btn-lg w-full">
               {busy ? (
                 <>
-                  <div
-                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
-                    aria-hidden
-                  />
-                  <span>Đang xác thực & mở dữ liệu…</span>
+                  <Loader2 size={17} className="animate-spin" aria-hidden />
+                  Đang xác thực…
                 </>
               ) : waitSeconds > 0 ? (
                 <>
-                  <Clock size={16} className="animate-spin" aria-hidden />
-                  <span>Thử lại sau {waitSeconds}s</span>
+                  <Clock size={17} aria-hidden />
+                  Thử lại sau {waitSeconds}s
                 </>
               ) : (
                 <>
-                  <span>Mở ứng dụng Quản lý</span>
-                  <ArrowRight
-                    size={16}
-                    className="transition-transform group-hover:translate-x-1"
-                    aria-hidden
-                  />
+                  Mở ứng dụng quản lý
+                  <ArrowRight size={17} aria-hidden />
                 </>
               )}
             </button>
           </form>
 
-          {/* Khối gợi ý tài khoản ban đầu */}
-          <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-[11.5px] leading-relaxed text-slate-600">
-            <div className="mb-0.5 flex items-center gap-1.5 font-semibold text-blue-900">
-              <Sparkles size={13} className="text-blue-600" aria-hidden />
-              <span>Tài khoản khởi tạo:</span>
+          <div className="notice mt-5">
+            <div>
+              <strong className="block">Tài khoản khởi tạo</strong>
+              Tài khoản mặc định là{' '}
+              <code className="rounded-xs bg-brand-100 px-1.5 py-0.5 font-bold">admin</code>. Hệ
+              thống bắt buộc đổi mật khẩu ở lần đăng nhập đầu tiên.
             </div>
-            <p>
-              Tài khoản mặc định là <code className="rounded bg-blue-100/80 px-1.5 py-0.5 font-bold text-blue-800">admin</code>.
-              Hệ thống bắt buộc đổi mật khẩu ở lần đăng nhập đầu tiên để đảm bảo an toàn.
-            </p>
           </div>
         </div>
 
-        {/* Chân trang biểu mẫu */}
-        <div className="relative z-10 mt-6 text-center text-[11.5px] text-slate-400 md:text-slate-500">
-          <p>© 2026 Trường THCS Lệ Ninh — Lệ Thủy, Quảng Bình</p>
-          <p className="mt-0.5 text-[11px] opacity-80">
-            Hệ thống Quản lý Thi đua Nề nếp & Hoạt động Đội THCS
+        <footer className="relative z-10 mt-6 text-center text-xs text-neutral-400 md:text-neutral-500">
+          <p className="m-0">© 2026 Trường THCS Lệ Ninh — Lệ Ninh, Quảng Trị</p>
+          <p className="m-0 mt-0.5 opacity-80">
+            Hệ thống Quản lý Thi đua Nề nếp &amp; Hoạt động Đội THCS
           </p>
-        </div>
-      </div>
+        </footer>
+      </section>
     </div>
   );
 }

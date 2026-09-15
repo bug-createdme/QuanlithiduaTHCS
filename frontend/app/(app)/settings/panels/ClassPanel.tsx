@@ -350,8 +350,9 @@ export function ClassPanel() {
       <Modal
         open={importOpen}
         title="Nhập danh sách lớp"
+        description="Dán dữ liệu từ bảng tính, xem trước rồi mới ghi vào hệ thống."
         onClose={() => setImportOpen(false)}
-        wide
+        size="lg"
         footer={
           <>
             <Button onClick={() => setImportOpen(false)}>Hủy</Button>
@@ -396,7 +397,7 @@ export function ClassPanel() {
 
         {preview?.length ? (
           <div className="mt-3">
-            <p className="mb-1.5 text-[12.5px] text-muted">
+            <p className="mb-1.5 text-sm text-muted">
               Xem trước {preview.length} dòng — kiểm tra trước khi ghi.
             </p>
             <TableWrap className="max-h-[240px]">

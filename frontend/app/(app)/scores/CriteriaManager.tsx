@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Download, Plus } from 'lucide-react';
+import { Copy, Download, Plus, Settings2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useScope } from '@/hooks/useScope';
@@ -17,6 +17,7 @@ import type { CriteriaSet, Criterion } from '@/types';
 import {
   Badge,
   Button,
+  DateInput,
   Field,
   LinkButton,
   LoadingState,
@@ -292,8 +293,10 @@ export function CriteriaManager({
       <Modal
         open={open}
         title="Quản lý bộ tiêu chí thi đua"
+        description="Mỗi năm học có thể dùng nhiều bộ tiêu chí; bộ đã có điểm chỉ tạo được phiên bản mới."
+        icon={<Settings2 size={18} aria-hidden />}
         onClose={onClose}
-        wide
+        size="xl"
         footer={
           <>
             <Button onClick={onClose}>Đóng</Button>
@@ -413,17 +416,16 @@ export function CriteriaManager({
                 />
               </Field>
               <Field label="Hiệu lực từ">
-                <TextInput
-                  type="date"
+                <DateInput
                   value={form.effectiveFrom}
-                  onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
+                  onValueChange={(effectiveFrom) => setForm({ ...form, effectiveFrom })}
                 />
               </Field>
               <Field label="Hiệu lực đến">
-                <TextInput
-                  type="date"
+                <DateInput
                   value={form.effectiveTo}
-                  onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })}
+                  min={form.effectiveFrom || undefined}
+                  onValueChange={(effectiveTo) => setForm({ ...form, effectiveTo })}
                 />
               </Field>
               <Field label="Trạng thái">
@@ -447,7 +449,7 @@ export function CriteriaManager({
             </div>
 
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="m-0 text-[14px] font-bold">Tiêu chí/thành phần</h3>
+              <h3 className="m-0 text-md font-bold">Tiêu chí/thành phần</h3>
               <Button
                 size="sm"
                 variant="primary"
@@ -600,8 +602,9 @@ export function CriteriaManager({
       <Modal
         open={criterionOpen}
         title={criterionId ? 'Sửa tiêu chí' : 'Thêm tiêu chí'}
+        description="Mã, cách tính điểm và yêu cầu minh chứng của một tiêu chí."
         onClose={() => setCriterionOpen(false)}
-        wide
+        size="lg"
         footer={
           <>
             <Button onClick={() => setCriterionOpen(false)}>Hủy</Button>
@@ -706,10 +709,10 @@ export function CriteriaManager({
               className="h-[34px] w-full rounded-control border border-line bg-white px-1"
             />
           </Field>
-          <label className="flex items-center gap-2 text-[13px]">
+          <label className="flex items-center gap-2 text-base">
             <input
               type="checkbox"
-              className="h-[15px] w-[15px] accent-[#0b6bcb]"
+              className="h-[16px] w-[16px] cursor-pointer accent-brand-600"
               checked={criterionForm.evidenceRequired}
               onChange={(e) =>
                 setCriterionForm({ ...criterionForm, evidenceRequired: e.target.checked })
@@ -717,10 +720,10 @@ export function CriteriaManager({
             />
             Bắt buộc minh chứng
           </label>
-          <label className="flex items-center gap-2 text-[13px]">
+          <label className="flex items-center gap-2 text-base">
             <input
               type="checkbox"
-              className="h-[15px] w-[15px] accent-[#0b6bcb]"
+              className="h-[16px] w-[16px] cursor-pointer accent-brand-600"
               checked={criterionForm.active}
               onChange={(e) => setCriterionForm({ ...criterionForm, active: e.target.checked })}
             />

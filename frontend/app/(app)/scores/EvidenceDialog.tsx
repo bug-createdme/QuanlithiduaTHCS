@@ -95,7 +95,8 @@ export function EvidenceDialog({
   return (
     <Modal
       open
-      wide
+      size="lg"
+      description="Tệp và ghi chú chứng minh cho điểm đã nhập tại ô này."
       title={
         entry
           ? `Minh chứng — ${entry.className} · ${entry.criterionCode}`
@@ -111,7 +112,7 @@ export function EvidenceDialog({
       ) : (
         <>
           {entry ? (
-            <p className="mb-3 mt-0 text-[13px] text-muted">
+            <p className="mb-3 mt-0 text-base text-muted">
               {entry.criterionName}
               {entry.evidenceRequired ? (
                 <strong className="ml-1 text-red">• Tiêu chí này bắt buộc có minh chứng</strong>
@@ -144,7 +145,7 @@ export function EvidenceDialog({
                     <td className="wrap">
                       {row.note ?? '—'}
                       {row.attachment ? (
-                        <div className="mt-1 flex items-center gap-1.5 text-[12px] text-muted">
+                        <div className="mt-1 flex items-center gap-1.5 text-xs text-muted">
                           <Paperclip size={12} aria-hidden />
                           {row.attachment.fileName}
                         </div>

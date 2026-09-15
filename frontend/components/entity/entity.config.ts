@@ -19,6 +19,11 @@ export interface EntityField {
   options?: Array<{ value: string; label: string }>;
   /** Khóa danh mục cấu hình động; nếu có dữ liệu sẽ ghi đè `options`. */
   configKey?: string;
+  /**
+   * Mở một phân đoạn mới trong biểu mẫu, bắt đầu từ chính trường này.
+   * Chỉ ảnh hưởng cách trình bày — thứ tự trường giữ nguyên 100%.
+   */
+  section?: string;
   full?: boolean;
   max?: number;
 }
@@ -57,7 +62,7 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
     customEntity: 'plans',
     labelField: 'name',
     fields: [
-      { name: 'code', label: 'Mã kế hoạch', type: 'text', required: true, max: 50 },
+      { name: 'code', label: 'Mã kế hoạch', type: 'text', required: true, max: 50, section: 'Thông tin chung' },
       { name: 'name', label: 'Tên kế hoạch', type: 'text', required: true, max: 200 },
       {
         name: 'level',
@@ -73,10 +78,23 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
       },
       { name: 'startDate', label: 'Bắt đầu', type: 'date', required: true },
       { name: 'endDate', label: 'Kết thúc', type: 'date', required: true },
-      { name: 'objectives', label: 'Mục tiêu', type: 'textarea', required: true, full: true },
+      {
+        name: 'objectives',
+        label: 'Mục tiêu',
+        type: 'textarea',
+        required: true,
+        full: true,
+        section: 'Mục tiêu và chỉ tiêu',
+      },
       { name: 'targets', label: 'Chỉ tiêu đo được', type: 'textarea', full: true },
       { name: 'basis', label: 'Căn cứ/văn bản liên quan', type: 'textarea', full: true },
-      { name: 'coordination', label: 'Đơn vị phối hợp', type: 'text', max: 200 },
+      {
+        name: 'coordination',
+        label: 'Đơn vị phối hợp',
+        type: 'text',
+        max: 200,
+        section: 'Tổ chức thực hiện',
+      },
       { name: 'resources', label: 'Nguồn lực', type: 'text', max: 200 },
       { name: 'risks', label: 'Rủi ro và phương án', type: 'textarea', full: true },
       {
@@ -85,6 +103,7 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
         type: 'select',
         required: true,
         options: opts(['DRAFT', 'Dự thảo'], ['ACTIVE', 'Đang thực hiện'], ['FINISHED', 'Đã kết thúc']),
+        section: 'Trạng thái và tiến độ',
       },
       { name: 'progress', label: 'Tiến độ (%)', type: 'number' },
     ],
@@ -105,7 +124,14 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
     customEntity: 'activities',
     labelField: 'name',
     fields: [
-      { name: 'name', label: 'Tên hoạt động', type: 'text', required: true, max: 200 },
+      {
+        name: 'name',
+        label: 'Tên hoạt động',
+        type: 'text',
+        required: true,
+        max: 200,
+        section: 'Thông tin hoạt động',
+      },
       {
         name: 'category',
         label: 'Nhóm hoạt động',
@@ -128,7 +154,13 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
       { name: 'location', label: 'Địa điểm', type: 'text', required: true, max: 200 },
       { name: 'leader', label: 'Người phụ trách', type: 'text', required: true, max: 120 },
       { name: 'participants', label: 'Đối tượng/quy mô', type: 'text', max: 200 },
-      { name: 'objectives', label: 'Mục tiêu', type: 'textarea', full: true },
+      {
+        name: 'objectives',
+        label: 'Mục tiêu',
+        type: 'textarea',
+        full: true,
+        section: 'Mục tiêu, an toàn và kết quả',
+      },
       { name: 'safety', label: 'Phương án an toàn', type: 'textarea', required: true, full: true },
       { name: 'backupPlan', label: 'Phương án dự phòng', type: 'textarea', full: true },
       { name: 'result', label: 'Kết quả sau hoạt động', type: 'textarea', full: true },
@@ -138,6 +170,7 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
         type: 'select',
         required: true,
         options: opts(['PLANNED', 'Dự kiến'], ['ACTIVE', 'Đang thực hiện'], ['FINISHED', 'Đã kết thúc']),
+        section: 'Trạng thái',
       },
     ],
     columns: [
@@ -156,7 +189,14 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
     endpoint: '/organization',
     labelField: 'name',
     fields: [
-      { name: 'name', label: 'Họ và tên', type: 'text', required: true, max: 120 },
+      {
+        name: 'name',
+        label: 'Họ và tên',
+        type: 'text',
+        required: true,
+        max: 120,
+        section: 'Thông tin thành viên',
+      },
       { name: 'internalCode', label: 'Mã nội bộ', type: 'text', max: 40 },
       { name: 'className', label: 'Lớp', type: 'text', required: true, max: 50 },
       {
@@ -174,7 +214,15 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
           ['Câu lạc bộ', 'Câu lạc bộ'],
         ),
       },
-      { name: 'position', label: 'Chức vụ', type: 'text', required: true, max: 80, configKey: 'team_position' },
+      {
+        name: 'position',
+        label: 'Chức vụ',
+        type: 'text',
+        required: true,
+        max: 80,
+        configKey: 'team_position',
+        section: 'Phân công và bồi dưỡng',
+      },
       { name: 'term', label: 'Nhiệm kỳ', type: 'text', required: true, max: 60 },
       { name: 'training', label: 'Kết quả bồi dưỡng', type: 'textarea', full: true },
     ],
@@ -202,8 +250,21 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
         max: 200,
         configKey: 'program_type',
       },
-      { name: 'scope', label: 'Đối tượng/lớp', type: 'text', required: true, max: 150 },
-      { name: 'result', label: 'Kết quả công nhận', type: 'text', max: 200 },
+      {
+        name: 'scope',
+        label: 'Đối tượng/lớp',
+        type: 'text',
+        required: true,
+        max: 150,
+        section: 'Phạm vi áp dụng',
+      },
+      {
+        name: 'result',
+        label: 'Kết quả công nhận',
+        type: 'text',
+        max: 200,
+        section: 'Kết quả công nhận',
+      },
       { name: 'recognizedDate', label: 'Ngày công nhận', type: 'date' },
       { name: 'activity', label: 'Hoạt động tham gia', type: 'text', max: 200 },
       { name: 'evidence', label: 'Minh chứng/ghi chú', type: 'textarea', full: true },
@@ -213,6 +274,7 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
         type: 'select',
         required: true,
         options: opts(['DRAFT', 'Đang theo dõi'], ['APPROVED', 'Đã công nhận']),
+        section: 'Trạng thái',
       },
     ],
     columns: [
@@ -232,10 +294,25 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
     customEntity: 'commendations',
     labelField: 'recipient',
     fields: [
-      { name: 'awardType', label: 'Loại khen thưởng', type: 'text', required: true, max: 100, configKey: 'award_type' },
+      {
+        name: 'awardType',
+        label: 'Loại khen thưởng',
+        type: 'text',
+        required: true,
+        max: 100,
+        configKey: 'award_type',
+        section: 'Đối tượng khen thưởng',
+      },
       { name: 'level', label: 'Cấp khen thưởng', type: 'text', required: true, max: 80, configKey: 'award_level' },
       { name: 'recipient', label: 'Đối tượng', type: 'text', required: true, max: 200 },
-      { name: 'achievement', label: 'Thành tích', type: 'textarea', required: true, full: true },
+      {
+        name: 'achievement',
+        label: 'Thành tích',
+        type: 'textarea',
+        required: true,
+        full: true,
+        section: 'Thành tích và hồ sơ liên quan',
+      },
       { name: 'date', label: 'Thời gian', type: 'date' },
       { name: 'related', label: 'Hoạt động/kỳ thi đua liên quan', type: 'text', max: 200 },
       {
@@ -243,6 +320,7 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
         label: 'Trạng thái xét duyệt',
         type: 'select',
         required: true,
+        section: 'Xét duyệt',
         options: opts(['DRAFT', 'Dự thảo'], ['REVIEW', 'Chờ duyệt'], ['APPROVED', 'Đã duyệt']),
       },
       { name: 'decision', label: 'Quyết định', type: 'text', max: 120 },
@@ -265,7 +343,14 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
     customEntity: 'equipment',
     labelField: 'name',
     fields: [
-      { name: 'name', label: 'Tên thiết bị/vật tư', type: 'text', required: true, max: 200 },
+      {
+        name: 'name',
+        label: 'Tên thiết bị/vật tư',
+        type: 'text',
+        required: true,
+        max: 200,
+        section: 'Thông tin thiết bị',
+      },
       { name: 'code', label: 'Mã', type: 'text', required: true, max: 50 },
       { name: 'groupName', label: 'Nhóm', type: 'text', max: 80, configKey: 'equipment_group' },
       { name: 'quantity', label: 'Số lượng', type: 'number', required: true },
@@ -276,6 +361,7 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
         type: 'select',
         required: true,
         configKey: 'equipment_condition',
+        section: 'Tình trạng, lưu trữ và sử dụng',
         options: opts(['Tốt', 'Tốt'], ['Cần sửa', 'Cần sửa'], ['Hỏng', 'Hỏng'], ['Đang mượn', 'Đang mượn']),
       },
       { name: 'location', label: 'Nơi lưu', type: 'text', max: 150 },

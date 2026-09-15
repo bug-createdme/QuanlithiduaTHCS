@@ -178,7 +178,7 @@ export function HomeroomTeacherPanel() {
                     <td className="wrap">
                       {teacher.fullName}
                       {teacher.note ? (
-                        <div className="mt-0.5 text-[12px] text-muted">{teacher.note}</div>
+                        <div className="mt-0.5 text-xs text-muted">{teacher.note}</div>
                       ) : null}
                     </td>
                     <td>{teacher.phone ?? '—'}</td>
@@ -250,7 +250,7 @@ export function HomeroomTeacherPanel() {
                           ))}
                         </Select>
                         {!cls.homeroomTeacherId && cls.teacher ? (
-                          <div className="mt-1 text-[12px] text-muted">
+                          <div className="mt-1 text-xs text-muted">
                             Đang ghi bằng văn bản: {cls.teacher}
                           </div>
                         ) : null}

@@ -1,12 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useScope } from '@/hooks/useScope';
 import { useToast } from '@/hooks/useToast';
 import { toDateInput } from '@/lib/format';
 import { ApiError, api } from '@/services/api';
 import type { ConfigItem, CustomFieldDefinition } from '@/types';
-import { Button, Field, LoadingState, Select, TextArea, TextInput } from '@/components/ui';
+import {
+  Button,
+  DateInput,
+  Field,
+  FormSection,
+  LoadingState,
+  Notice,
+  Select,
+  TextArea,
+  TextInput,
+} from '@/components/ui';
 import { Modal } from '@/components/ui/Modal';
 import { CustomFieldInputs, collectCustomValues } from './CustomFieldInputs';
 import type { EntityConfig, EntityField } from './entity.config';
@@ -183,20 +193,25 @@ export function EntityForm({
   };
 
   const title = `${recordId ? 'Cập nhật' : 'Thêm'} ${config.title.toLowerCase()}`;
+  const hasIssues = Object.keys(issues).length > 0;
 
   return (
     <Modal
       open={open}
       title={title}
+      description={config.description}
+      size="lg"
       onClose={onClose}
-      wide
       footer={
         <>
+          <span className="mr-auto hidden text-xs text-neutral-500 sm:block">
+            Trường có dấu <span className="font-bold text-danger-600">*</span> là bắt buộc.
+          </span>
           <Button onClick={onClose} disabled={saving}>
             Hủy
           </Button>
           <Button variant="primary" form="entityForm" type="submit" loading={saving}>
-            Lưu
+            {recordId ? 'Lưu thay đổi' : 'Thêm bản ghi'}
           </Button>
         </>
       }
@@ -205,6 +220,12 @@ export function EntityForm({
         <LoadingState />
       ) : (
         <form id="entityForm" onSubmit={handleSubmit}>
+          {hasIssues ? (
+            <Notice tone="danger" title="Chưa lưu được" className="mb-4">
+              Một số trường chưa hợp lệ. Các trường có lỗi được đánh dấu đỏ ngay bên dưới.
+            </Notice>
+          ) : null}
+
           <div className="form-grid">
             {config.fields.map((field) => {
               const error = issues[field.name];
@@ -212,56 +233,74 @@ export function EntityForm({
               const options = optionsFor(field);
 
               return (
-                <Field
-                  key={field.name}
-                  label={field.label}
-                  required={field.required}
-                  error={error}
-                  full={field.full || field.type === 'textarea'}
-                >
-                  {field.type === 'textarea' ? (
-                    <TextArea
-                      name={field.name}
-                      value={value}
-                      required={field.required}
-                      onChange={(e) => setValue(field.name, e.target.value)}
-                    />
-                  ) : field.type === 'select' || options.length > 0 ? (
-                    <Select
-                      name={field.name}
-                      value={value}
-                      required={field.required}
-                      onChange={(e) => setValue(field.name, e.target.value)}
-                    >
-                      <option value="">— Chọn —</option>
-                      {options.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  ) : (
-                    <TextInput
-                      name={field.name}
-                      type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                      value={value}
-                      required={field.required}
-                      maxLength={field.max}
-                      step={field.type === 'number' ? 'any' : undefined}
-                      onChange={(e) => setValue(field.name, e.target.value)}
-                    />
-                  )}
-                </Field>
+                <Fragment key={field.name}>
+                  {field.section ? <FormSection title={field.section} /> : null}
+                  <Field
+                    label={field.label}
+                    required={field.required}
+                    error={error}
+                    full={field.full || field.type === 'textarea'}
+                  >
+                    {field.type === 'textarea' ? (
+                      <TextArea
+                        name={field.name}
+                        value={value}
+                        required={field.required}
+                        invalid={Boolean(error)}
+                        onChange={(e) => setValue(field.name, e.target.value)}
+                      />
+                    ) : field.type === 'select' || options.length > 0 ? (
+                      <Select
+                        name={field.name}
+                        value={value}
+                        required={field.required}
+                        invalid={Boolean(error)}
+                        onChange={(e) => setValue(field.name, e.target.value)}
+                      >
+                        <option value="">— Chọn —</option>
+                        {options.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : field.type === 'date' ? (
+                      <DateInput
+                        name={field.name}
+                        value={value}
+                        required={field.required}
+                        invalid={Boolean(error)}
+                        onValueChange={(next) => setValue(field.name, next)}
+                      />
+                    ) : (
+                      <TextInput
+                        name={field.name}
+                        type={field.type === 'number' ? 'number' : 'text'}
+                        value={value}
+                        required={field.required}
+                        invalid={Boolean(error)}
+                        maxLength={field.max}
+                        step={field.type === 'number' ? 'any' : undefined}
+                        onChange={(e) => setValue(field.name, e.target.value)}
+                      />
+                    )}
+                  </Field>
+                </Fragment>
               );
             })}
 
+            {customDefs.length > 0 ? <FormSection title="Trường tùy chỉnh của trường" /> : null}
             <CustomFieldInputs
               definitions={customDefs}
               values={customValues}
               onChange={setCustomValues}
             />
 
-            <Field label="Cơ sở áp dụng">
+            <FormSection title="Phạm vi áp dụng" />
+            <Field
+              label="Cơ sở áp dụng"
+              hint="Để trống nếu bản ghi dùng chung cho toàn trường."
+            >
               <Select
                 value={values.campusId ?? ''}
                 onChange={(e) => setValue('campusId', e.target.value)}

@@ -3,27 +3,121 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   Biến CSS lấy nguyên từ website gốc — dùng cho những chỗ Tailwind
-   không tiện diễn đạt (viền bảng in, thanh cuộn, khổ giấy).
+   1. DESIGN TOKENS
+   --------------------------------------------------------------------------
+   Nguồn sự thật duy nhất của hệ thống thiết kế. Màu lưu dưới dạng ba số
+   "R G B" để Tailwind sinh được biến thể độ mờ (`bg-brand-600/10`).
+   Muốn đổi diện mạo toàn hệ thống chỉ cần sửa khối này.
    ========================================================================== */
 :root {
-  --blue: #0b6bcb;
-  --blue2: #0757a6;
-  --blue-soft: #eaf4ff;
-  --green: #16845b;
-  --green-soft: #e9f8f1;
-  --yellow: #f4b41a;
-  --red: #c93c3c;
-  --red-soft: #fff0f0;
-  --ink: #172235;
-  --muted: #667085;
-  --line: #dce4ec;
-  --bg: #f4f7fa;
+  /* ---- Trung tính: MỘT thang duy nhất, tông xanh lạnh (cool slate) ------ */
+  --n-0: 255 255 255;
+  --n-25: 250 252 254;
+  --n-50: 245 248 251;
+  --n-100: 238 242 247;
+  --n-200: 226 232 241;
+  --n-300: 205 214 227;
+  /* n-400 dat 3.5:1 tren nen trang (placeholder, chu trang tri),
+     n-500 dat 4.75:1 — du chuan WCAG AA cho chu thuong. */
+  --n-400: 125 138 158;
+  --n-500: 102 116 136;
+  --n-600: 85 98 117;
+  --n-700: 63 75 94;
+  --n-800: 42 53 71;
+  --n-900: 23 34 53;
+  --n-950: 13 21 35;
+
+  /* ---- Thương hiệu: giữ #0b6bcb của hệ thống cũ làm bậc 600 ------------- */
+  --brand-50: 238 245 255;
+  --brand-100: 216 232 255;
+  --brand-200: 185 213 254;
+  --brand-300: 139 186 252;
+  --brand-400: 85 150 245;
+  --brand-500: 36 120 228;
+  --brand-600: 11 107 203;
+  --brand-700: 10 86 164;
+  --brand-800: 13 72 132;
+  --brand-900: 16 60 108;
+  --brand-950: 10 38 71;
+
+  /* ---- Trạng thái ------------------------------------------------------- */
+  --success-50: 232 248 240;
+  --success-100: 205 239 223;
+  --success-200: 159 222 194;
+  --success-500: 21 160 107;
+  --success-600: 15 125 83;
+  --success-700: 11 97 66;
+
+  --warning-50: 255 248 232;
+  --warning-100: 255 238 196;
+  --warning-200: 252 220 141;
+  --warning-500: 224 160 16;
+  --warning-600: 184 124 7;
+  --warning-700: 138 92 6;
+
+  --danger-50: 254 242 242;
+  --danger-100: 253 224 223;
+  --danger-200: 249 191 189;
+  --danger-500: 220 76 73;
+  --danger-600: 194 53 47;
+  --danger-700: 155 41 37;
+
+  /* ---- Bí danh ngữ nghĩa ------------------------------------------------ */
+  --text-strong: var(--n-900);
+  --text: var(--n-800);
+  --text-muted: var(--n-500);
+  --border: var(--n-200);
+  --border-strong: var(--n-300);
+  --bg-canvas: var(--n-50);
+  --bg-surface: var(--n-0);
+  --bg-sunken: var(--n-100);
+  --bg-raised: var(--n-0);
+
+  /* ---- Thanh điều hướng ------------------------------------------------- */
+  --sidebar-bg: 13 36 64;
+  --sidebar-deep: 8 26 48;
+  --sidebar-text: 195 214 234;
+  --sidebar-dim: 143 169 198;
+  --sidebar-active: 11 107 203;
+  --sidebar-hover: 255 255 255;
+
+  /* ---- Bo góc ----------------------------------------------------------- */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-2xl: 20px;
+
+  /* ---- Đổ bóng: nhẹ, ám xanh lạnh, không "nổi khối" ---------------------- */
+  --shadow-xs: 0 1px 2px rgba(16, 30, 54, 0.06), 0 1px 3px rgba(16, 30, 54, 0.04);
+  --shadow-sm: 0 2px 4px -1px rgba(16, 30, 54, 0.07), 0 4px 10px -2px rgba(16, 30, 54, 0.05);
+  --shadow-md: 0 4px 8px -2px rgba(16, 30, 54, 0.08), 0 10px 20px -4px rgba(16, 30, 54, 0.07);
+  --shadow-lg: 0 8px 16px -4px rgba(16, 30, 54, 0.1), 0 20px 36px -8px rgba(16, 30, 54, 0.1);
+  --shadow-xl: 0 16px 32px -8px rgba(16, 30, 54, 0.14), 0 32px 64px -16px rgba(16, 30, 54, 0.18);
+  --shadow-focus: 0 0 0 3px rgba(11, 107, 203, 0.18);
+
+  /* ---- Bí danh cũ giữ lại cho CSS thuần (bảng in, thanh cuộn) ----------- */
+  --blue: rgb(11 107 203);
+  --blue2: rgb(10 86 164);
+  --blue-soft: rgb(238 245 255);
+  --green: rgb(15 125 83);
+  --green-soft: rgb(232 248 240);
+  --yellow: rgb(224 160 16);
+  --red: rgb(194 53 47);
+  --red-soft: rgb(254 242 242);
+  --ink: rgb(23 34 53);
+  --muted: rgb(102 116 136);
+  --line: rgb(226 232 241);
+  --bg: rgb(245 248 251);
   --card: #fff;
-  --radius: 10px;
-  --shadow: 0 2px 10px rgba(23, 34, 53, 0.07);
+  --radius: var(--r-lg);
+  --shadow: var(--shadow-xs);
 }
 
+/* ==========================================================================
+   2. NỀN TẢNG
+   ========================================================================== */
 @layer base {
   * {
     box-sizing: border-box;
@@ -36,16 +130,11 @@
   }
 
   body {
-    @apply bg-canvas text-ink;
-    font:
-      14px/1.45 system-ui,
-      -apple-system,
-      'Segoe UI',
-      Roboto,
-      Arial,
-      sans-serif;
+    @apply bg-canvas font-sans text-base text-ink antialiased;
     /* Bản gốc khóa cuộn ở body; chỉ vùng nội dung mới cuộn. */
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   button,
@@ -60,10 +149,24 @@
     cursor: pointer;
   }
 
+  /* Chữ số trong bảng dữ liệu luôn thẳng cột. */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-semibold tracking-[-0.01em] text-ink;
+  }
+
   /* Viền focus rõ ràng, phục vụ điều hướng bàn phím. */
   :focus-visible {
-    outline: 2px solid var(--blue);
-    outline-offset: 1px;
+    outline: 2px solid rgb(var(--brand-600));
+    outline-offset: 2px;
+    border-radius: var(--r-xs);
   }
 
   ::-webkit-scrollbar {
@@ -71,173 +174,360 @@
     height: 10px;
   }
   ::-webkit-scrollbar-thumb {
-    background: #c9d6e3;
-    border-radius: 6px;
+    background: rgb(var(--n-300));
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--n-400));
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
+
+  /*
+   * Chỉ còn ô GIỜ dùng control gốc của trình duyệt; ô NGÀY đã thay bằng
+   * <DateInput> tự vẽ để luôn hiển thị dd/MM/yyyy bất kể ngôn ngữ hệ điều hành.
+   */
+  input[type='time'] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input[type='time']::-webkit-calendar-picker-indicator {
+    opacity: 0.55;
+    cursor: pointer;
+  }
+  input[type='time']:hover::-webkit-calendar-picker-indicator {
+    opacity: 1;
+  }
 }
 
+/* ==========================================================================
+   3. LỚP THÀNH PHẦN
+   ========================================================================== */
 @layer components {
-  /* ---------- Nút ---------- */
+  /* ------------------------------------------------------------------ Nút */
   .btn {
-    @apply inline-flex h-[34px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap
-           rounded-control border border-line bg-white px-3 text-[13px] font-semibold
-           text-ink transition-colors hover:bg-blue-soft disabled:cursor-not-allowed
-           disabled:opacity-50 disabled:hover:bg-white;
+    @apply inline-flex h-control shrink-0 select-none items-center justify-center gap-1.5
+           whitespace-nowrap rounded-md border border-line bg-white px-3 text-sm font-semibold
+           text-neutral-700 shadow-xs transition-all duration-150
+           hover:border-neutral-300 hover:bg-neutral-50 hover:text-ink
+           active:scale-[0.985]
+           disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none;
   }
   .btn-primary {
-    @apply border-blue bg-blue text-white hover:bg-blue-dark;
+    @apply border-transparent bg-brand-600 text-white shadow-sm
+           hover:border-transparent hover:bg-brand-700 hover:text-white;
   }
   .btn-danger {
-    @apply border-red bg-red text-white hover:brightness-95;
+    @apply border-transparent bg-danger-600 text-white shadow-sm
+           hover:border-transparent hover:bg-danger-700 hover:text-white;
+  }
+  .btn-success {
+    @apply border-transparent bg-success-600 text-white shadow-sm
+           hover:border-transparent hover:bg-success-700 hover:text-white;
+  }
+  /** Nhấn nhẹ: nền pastel thương hiệu, dùng cho hành động phụ nổi bật. */
+  .btn-soft {
+    @apply border-brand-100 bg-brand-50 text-brand-700 shadow-none
+           hover:border-brand-200 hover:bg-brand-100 hover:text-brand-800;
+  }
+  /** Trong suốt: dùng trong thanh công cụ dày đặc và menu. */
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-neutral-600 shadow-none
+           hover:border-transparent hover:bg-neutral-100 hover:text-ink;
   }
   .btn-sm {
-    @apply h-[28px] px-2 text-[12px];
+    @apply h-control-sm gap-1 px-2.5 text-xs;
   }
+  .btn-lg {
+    @apply h-control-lg px-4 text-md;
+  }
+  /** Nút chỉ có biểu tượng — giữ vùng bấm vuông tối thiểu 36px. */
+  .btn-icon {
+    @apply w-control px-0;
+  }
+  .btn-icon.btn-sm {
+    @apply w-control-sm;
+  }
+  .btn-icon.btn-lg {
+    @apply w-control-lg;
+  }
+
   .icon-btn {
-    @apply grid h-[34px] w-[34px] shrink-0 place-items-center rounded-control border
-           border-line bg-white text-ink transition-colors hover:bg-blue-soft;
+    @apply grid h-control w-control shrink-0 place-items-center rounded-md border border-line
+           bg-white text-neutral-600 shadow-xs transition-all duration-150
+           hover:border-neutral-300 hover:bg-neutral-50 hover:text-ink active:scale-95
+           disabled:pointer-events-none disabled:opacity-45;
   }
+
   .link-btn {
-    @apply inline-flex items-center border-0 bg-transparent p-0 text-[12.5px] font-semibold
-           text-blue underline-offset-2 hover:underline disabled:cursor-not-allowed
-           disabled:text-muted disabled:no-underline;
+    @apply inline-flex items-center gap-1 rounded-sm border-0 bg-transparent px-1 py-0.5
+           text-sm font-semibold text-brand-700 underline-offset-2 transition-colors
+           hover:bg-brand-50 hover:text-brand-800 hover:underline
+           disabled:cursor-not-allowed disabled:text-neutral-400 disabled:no-underline;
   }
   .link-btn-red {
-    @apply text-red;
+    @apply text-danger-600 hover:bg-danger-50 hover:text-danger-700;
   }
 
-  /* ---------- Ô nhập ---------- */
+  /* -------------------------------------------------------------- Ô nhập */
   .field-input {
-    @apply h-[34px] w-full rounded-control border border-line bg-white px-2.5
-           text-[13px] outline-none transition-colors focus:border-blue;
+    @apply h-control w-full rounded-md border border-line bg-white px-3 text-base
+           text-ink shadow-xs outline-none transition-all duration-150
+           placeholder:text-neutral-400
+           hover:border-neutral-300
+           focus:border-brand-500 focus:shadow-focus
+           disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400;
   }
   .field-textarea {
-    @apply min-h-[76px] w-full resize-y rounded-control border border-line bg-white
-           px-2.5 py-2 text-[13px] outline-none transition-colors focus:border-blue;
+    @apply min-h-[84px] w-full resize-y rounded-md border border-line bg-white px-3 py-2
+           text-base text-ink shadow-xs outline-none transition-all duration-150
+           placeholder:text-neutral-400
+           hover:border-neutral-300
+           focus:border-brand-500 focus:shadow-focus
+           disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400;
+  }
+  /** <select> gốc + mũi tên vẽ bằng SVG để đồng bộ trên mọi trình duyệt. */
+  .field-select {
+    @apply appearance-none bg-no-repeat pr-8;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667488' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 10px center;
+    background-size: 15px 15px;
+  }
+  .field-input-error {
+    @apply border-danger-500;
+  }
+  .field-input-error:focus {
+    border-color: rgb(var(--danger-600));
+    box-shadow: 0 0 0 3px rgba(194, 53, 47, 0.16);
   }
   .field-label {
-    @apply mb-1 block text-[12px] font-semibold text-muted;
+    @apply mb-1.5 flex items-center gap-1 text-sm font-semibold text-neutral-700;
   }
   .field-label-required::after {
-    content: ' *';
-    color: var(--red);
+    content: '*';
+    color: rgb(var(--danger-600));
+    font-weight: 700;
   }
   .field-hint {
-    @apply mt-1 block text-[11px] text-muted;
+    @apply mt-1.5 block text-xs leading-relaxed text-neutral-500;
+  }
+  .field-error {
+    @apply mt-1.5 flex items-start gap-1 text-xs font-semibold text-danger-600;
   }
 
-  /* ---------- Thẻ ---------- */
+  /* ---------------------------------------------------------------- Thẻ */
+  /*
+   * `min-w-0` là bắt buộc: thẻ này gần như luôn là con của grid/flex, mà mục
+   * grid mặc định có `min-width: auto` — một dòng chữ `truncate` bên trong sẽ
+   * kéo cả cột rộng hơn khung nhìn và gây cuộn ngang trên điện thoại.
+   */
   .card {
-    @apply rounded-card border border-line bg-card shadow-card;
+    @apply min-w-0 rounded-lg border border-line bg-card shadow-xs;
   }
   .card-head {
-    @apply flex items-center justify-between gap-2 border-b border-line px-3.5 py-2.5;
+    @apply flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3;
   }
   .card-head h2 {
-    @apply m-0 text-[14px] font-bold;
+    @apply m-0 text-lg font-semibold text-ink;
   }
   .card-body {
-    @apply p-3.5;
+    @apply p-4;
+  }
+  /** Thẻ phẳng: dùng bên trong thẻ khác hoặc trong modal. */
+  .card-flat {
+    @apply rounded-md border border-line bg-neutral-25 shadow-none;
   }
 
-  /* ---------- Nhãn trạng thái ---------- */
+  /* ------------------------------------------------- Nhãn trạng thái */
   .badge {
-    @apply inline-flex items-center rounded-full border border-line bg-canvas px-2
-           py-[1px] text-[11px] font-semibold text-muted;
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-line
+           bg-neutral-50 px-2 py-[2px] text-xs font-semibold text-neutral-600;
   }
   .badge-green {
-    @apply border-green/25 bg-green-soft text-green;
+    @apply border-success-200 bg-success-50 text-success-700;
   }
   .badge-blue {
-    @apply border-blue/25 bg-blue-soft text-blue;
+    @apply border-brand-200 bg-brand-50 text-brand-700;
   }
   .badge-yellow {
-    @apply border-yellow/40 bg-[#fff8e6] text-[#8a6100];
+    @apply border-warning-200 bg-warning-50 text-warning-700;
   }
   .badge-red {
-    @apply border-red/25 bg-red-soft text-red;
+    @apply border-danger-200 bg-danger-50 text-danger-700;
+  }
+  /** Chấm tròn đứng trước chữ — trạng thái không chỉ phân biệt bằng màu. */
+  .badge-dot::before {
+    content: '';
+    @apply h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-80;
   }
 
-  /* ---------- Bảng ---------- */
+  .chip {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-line
+           bg-white px-2.5 py-1 text-xs font-semibold text-neutral-600;
+  }
+
+  .kbd {
+    @apply inline-flex h-5 min-w-[20px] items-center justify-center rounded-xs border
+           border-line bg-neutral-50 px-1 font-sans text-2xs font-semibold text-neutral-500;
+  }
+
+  /* -------------------------------------------------------------- Bảng */
   .table-wrap {
-    @apply max-h-[calc(100vh-260px)] overflow-auto rounded-card border border-line bg-card;
+    @apply min-w-0 max-h-[calc(100vh-280px)] overflow-auto rounded-lg border border-line
+           bg-card shadow-xs;
   }
   .data-table {
-    @apply w-full border-collapse text-[13px];
+    @apply w-full border-collapse text-base;
   }
   .data-table thead th {
-    @apply sticky top-0 z-10 whitespace-nowrap border-b border-line bg-[#f7fafd]
-           px-2.5 py-2 text-left text-[12px] font-bold text-muted;
+    @apply sticky top-0 z-10 whitespace-nowrap border-b border-line bg-neutral-50 px-3 py-2.5
+           text-left text-xs font-bold uppercase tracking-[0.04em] text-neutral-500;
   }
   .data-table tbody td {
-    @apply border-b border-line px-2.5 py-2 align-top;
+    @apply border-b border-neutral-100 px-3 py-2.5 align-middle text-neutral-700;
+  }
+  .data-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .data-table tbody tr {
+    @apply transition-colors;
   }
   .data-table tbody tr:hover {
-    @apply bg-[#fafcfe];
+    @apply bg-brand-50/45;
   }
   .data-table td.wrap {
     @apply min-w-[180px] whitespace-normal;
   }
+  /** Cột số: canh phải và dùng chữ số đều bề rộng. */
+  .data-table td.num,
+  .data-table th.num {
+    @apply text-right tabular-nums;
+  }
+  /** Cột thao tác dính bên phải khi bảng cuộn ngang. */
+  .data-table td.actions {
+    @apply whitespace-nowrap;
+  }
 
-  /* ---------- Thông báo ---------- */
+  /* ---------------------------------------------------------- Thông báo */
   .notice {
-    @apply rounded-control border border-blue/20 bg-blue-soft px-3 py-2 text-[12.5px] leading-relaxed;
+    @apply flex items-start gap-2.5 rounded-md border border-brand-200 bg-brand-50 px-3.5 py-2.5
+           text-sm leading-relaxed text-brand-900;
   }
   .notice-warn {
-    @apply border-yellow/40 bg-[#fff8e6] text-[#6b4e00];
+    @apply border-warning-200 bg-warning-50 text-warning-700;
   }
   .notice-danger {
-    @apply border-red/25 bg-red-soft text-[#8c2020];
+    @apply border-danger-200 bg-danger-50 text-danger-700;
+  }
+  .notice-success {
+    @apply border-success-200 bg-success-50 text-success-700;
+  }
+  .notice-neutral {
+    @apply border-line bg-neutral-50 text-neutral-700;
   }
 
   .empty-state {
-    @apply grid place-items-center rounded-card border border-dashed border-line
-           bg-card px-4 py-10 text-center text-[13px] text-muted;
+    @apply grid place-items-center rounded-lg border border-dashed border-neutral-300
+           bg-neutral-25 px-4 py-12 text-center text-base text-neutral-500;
   }
 
-  /* ---------- Thanh công cụ & lưới form ---------- */
+  /* -------------------------------------------- Thanh công cụ & lưới form */
   .toolbar {
-    @apply mb-2.5 flex flex-wrap items-center gap-2 rounded-card border border-line
-           bg-card px-2.5 py-2 shadow-card;
+    @apply mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-card
+           px-3 py-2.5 shadow-xs;
   }
   /*
    * Mặc định min-width của flex item là `auto`, nên một <select> có tùy chọn dài
    * sẽ giãn theo nội dung và đẩy các mục khác ra khỏi màn hình hẹp.
-   * Đặt min-width 0 để mọi mục trong thanh công cụ đều co lại được.
-   * Nút bấm đã có `shrink-0` riêng nên không bị bóp méo.
    */
   .toolbar > * {
     min-width: 0;
   }
+
   .form-grid {
-    @apply grid grid-cols-2 gap-3 tablet:grid-cols-1;
+    @apply grid grid-cols-2 gap-x-4 gap-y-3.5 tablet:grid-cols-1;
   }
   .form-grid .full {
     @apply col-span-2 tablet:col-span-1;
   }
+  /** Nhóm trường có tiêu đề — chia nhỏ biểu mẫu dài. */
+  .form-section {
+    @apply col-span-2 tablet:col-span-1;
+  }
+  .form-section-title {
+    @apply mb-0.5 mt-1 flex items-center gap-2 text-xs font-bold uppercase
+           tracking-[0.06em] text-neutral-500;
+  }
+  .form-section-title::after {
+    content: '';
+    @apply h-px flex-1 bg-line;
+  }
 
-  /* ---------- Thanh tiến độ ---------- */
+  /* -------------------------------------------------------- Thanh tiến độ */
   .progress-track {
-    @apply h-1.5 w-full overflow-hidden rounded-full bg-line;
+    @apply h-2 w-full overflow-hidden rounded-full bg-neutral-200;
   }
   .progress-fill {
-    @apply block h-full rounded-full bg-blue transition-[width] duration-300;
+    @apply block h-full rounded-full bg-brand-600 transition-[width] duration-500 ease-out-expo;
   }
 
-  /* ---------- Bảng nhập điểm ---------- */
-  .score-input {
-    @apply h-[30px] w-[62px] rounded-[5px] border border-line bg-white text-center
-           text-[13px] outline-none transition-colors focus:border-blue focus:ring-1
-           focus:ring-blue disabled:bg-[#f2f5f8] disabled:text-muted;
+  /* --------------------------------------------------------- Menu thả xuống */
+  .menu-panel {
+    @apply z-50 min-w-[190px] animate-pop-in overflow-hidden rounded-lg border border-line
+           bg-card p-1.5 shadow-lg;
   }
+  .menu-item {
+    @apply flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-base
+           font-medium text-neutral-700 transition-colors
+           hover:bg-neutral-100 hover:text-ink
+           disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent;
+  }
+  .menu-item-danger {
+    @apply text-danger-600 hover:bg-danger-50 hover:text-danger-700;
+  }
+  .menu-label {
+    @apply px-2.5 pb-1 pt-2 text-2xs font-bold uppercase tracking-[0.06em] text-neutral-400;
+  }
+  .menu-sep {
+    @apply my-1 h-px bg-line;
+  }
+
+  /* ------------------------------------------------------- Khung xương tải */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-neutral-100;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.65) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+  }
+
+  /* ---------------------------------------------------- Bảng nhập điểm */
+  .score-input {
+    @apply h-8 w-[64px] rounded-sm border border-line bg-white text-center text-base
+           text-ink outline-none transition-all duration-150
+           hover:border-neutral-300
+           focus:border-brand-500 focus:shadow-focus
+           disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-400;
+  }
+  /** Ô chưa nhập: nền vàng rất nhạt thay vì đỏ — "thiếu" không phải "sai". */
   .score-input-missing {
-    @apply border-red/40 bg-red-soft;
+    @apply border-warning-200 bg-warning-50;
   }
 }
 
+/* ==========================================================================
+   4. TIỆN ÍCH
+   ========================================================================== */
 @layer utilities {
   .sr-only-focusable:not(:focus):not(:focus-within) {
     position: absolute;
@@ -250,10 +540,41 @@
     white-space: nowrap;
     border: 0;
   }
+
+  /** Ẩn thanh cuộn nhưng vẫn cuộn được — dùng cho thanh tab tràn ngang. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /** Che mép nội dung tràn ngang bằng gradient, gợi ý còn nội dung phía sau. */
+  .fade-edge-x {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 12px,
+      #000 calc(100% - 12px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 12px,
+      #000 calc(100% - 12px),
+      transparent 100%
+    );
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
 }
 
 /* ==========================================================================
-   In ấn — khổ giấy đổi theo data-paper như bản gốc.
+   5. IN ẤN — khổ giấy đổi theo data-paper như bản gốc.
    ========================================================================== */
 @media print {
   body {
@@ -267,9 +588,15 @@
     max-height: none;
     overflow: visible;
     border: 0;
+    box-shadow: none;
   }
   .data-table thead th {
     position: static;
+    background: #fff;
+  }
+  .card {
+    border: 0;
+    box-shadow: none;
   }
 }
 
@@ -297,5 +624,6 @@ body[data-paper='portrait'] {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

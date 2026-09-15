@@ -1,6 +1,16 @@
 'use client';
 
-import { CameraIcon, Database, Download, HistoryIcon, Upload } from 'lucide-react';
+import {
+  CameraIcon,
+  Database,
+  Download,
+  Eye,
+  HardDrive,
+  HistoryIcon,
+  RotateCcw,
+  ShieldCheck,
+  Upload,
+} from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,11 +27,11 @@ import {
   CardHead,
   Checkbox,
   ErrorState,
-  LinkButton,
   LoadingState,
   Notice,
   PageHead,
   Split,
+  StatCard,
   TableEmptyRow,
   TableWrap,
 } from '@/components/ui';
@@ -222,76 +232,72 @@ export default function BackupPage() {
         web và dùng chung được trên mọi thiết bị.
       </Notice>
 
-      <div className="grid grid-cols-3 gap-3 tablet:grid-cols-1">
+      <div className="grid gap-3 md:grid-cols-3">
+        <StatCard
+          value={data.lastBackupAt ? fmtDateTime(data.lastBackupAt) : 'Chưa có'}
+          label="Sao lưu gần nhất"
+          hint={`${data.attachmentCount} tệp đính kèm · ${formatBytes(data.attachmentBytes)}`}
+          tone={data.lastBackupAt ? 'success' : 'warning'}
+          icon={<HistoryIcon size={17} aria-hidden />}
+          valueClassName="text-lg"
+        />
+        <StatCard
+          value={data.snapshots.length}
+          label="Điểm khôi phục nội bộ"
+          hint="Luôn tự tạo một điểm bảo vệ trước khi ghi đè"
+          tone="brand"
+          icon={<ShieldCheck size={17} aria-hidden />}
+        />
         <Card>
-          <CardHead title="Sao lưu gần nhất" />
-          <CardBody>
-            <strong className="text-[15px]">
-              {data.lastBackupAt ? fmtDateTime(data.lastBackupAt) : 'Chưa có'}
-            </strong>
-            <p className="mt-1 text-[12.5px] text-muted">
-              {data.attachmentCount} tệp đính kèm • {formatBytes(data.attachmentBytes)}
-            </p>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHead title="Phục hồi an toàn" />
-          <CardBody>
-            <p className="m-0 text-[12.5px]">
-              Kiểm tra định dạng, số bản ghi và checksum trước khi ghi. Luôn tự tạo điểm khôi phục
-              bảo vệ trước khi ghi đè.
-            </p>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHead title="Nơi lưu dữ liệu" />
-          <CardBody>
-            <Badge tone="blue">
-              <Database size={11} className="mr-1" aria-hidden />
+          <CardBody className="flex h-full flex-col justify-center p-3.5">
+            <span className="text-sm font-semibold text-neutral-600">Nơi lưu dữ liệu</span>
+            <Badge tone="blue" className="mt-2 w-fit" icon={<Database size={11} aria-hidden />}>
               {data.storage.label}
             </Badge>
-            <p className="mt-2 text-[12px] text-muted">
+            <p className="mt-2 text-xs leading-snug text-neutral-500">
               Tệp đính kèm lưu trên đĩa máy chủ, metadata lưu trong PostgreSQL.
             </p>
           </CardBody>
         </Card>
       </div>
 
-      <Card className="mt-3">
-        <CardHead title="Ba phạm vi sao lưu ngoài" />
-        <CardBody className="pt-2">
-          <TableWrap className="max-h-none">
-            <thead>
-              <tr>
-                <th>Chế độ</th>
-                <th>Nội dung</th>
-                <th>Phù hợp</th>
-                <th className="w-[110px]" />
-              </tr>
-            </thead>
-            <tbody>
-              {BACKUP_SCOPES.map((item) => (
-                <tr key={item.scope}>
-                  <td>
-                    <strong>{item.label}</strong>
-                  </td>
-                  <td className="wrap">{item.content}</td>
-                  <td>{item.fit}</td>
-                  <td>
-                    <LinkButton onClick={() => void exportBackup(item.scope)}>Xuất</LinkButton>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </TableWrap>
+      <Card className="mt-4">
+        <CardHead
+          title="Ba phạm vi sao lưu ngoài"
+          icon={<HardDrive size={16} aria-hidden />}
+          description="Chọn phạm vi phù hợp với mục đích; tệp tải thẳng về máy của thầy cô."
+        />
+        <CardBody className="grid gap-3 md:grid-cols-3">
+          {BACKUP_SCOPES.map((item) => (
+            <div
+              key={item.scope}
+              className="flex flex-col rounded-md border border-line bg-neutral-25 p-3.5"
+            >
+              <strong className="text-base font-semibold text-ink">{item.label}</strong>
+              <p className="m-0 mt-1 flex-1 text-sm leading-relaxed text-neutral-500">
+                {item.content}
+              </p>
+              <p className="m-0 mt-2 text-2xs text-neutral-500">
+                <span className="font-semibold text-neutral-600">Phù hợp:</span> {item.fit}
+              </p>
+              <Button
+                size="sm"
+                className="mt-3"
+                block
+                icon={<Download size={13} aria-hidden />}
+                onClick={() => void exportBackup(item.scope)}
+              >
+                Xuất bản {item.label.toLowerCase()}
+              </Button>
+            </div>
+          ))}
         </CardBody>
       </Card>
 
-      <Card className="mt-3">
+      <Card className="mt-4">
         <CardHead
           title="Điểm khôi phục nội bộ"
+          icon={<ShieldCheck size={16} aria-hidden />}
           meta={`${data.snapshots.length} điểm`}
           actions={
             <Button
@@ -318,7 +324,7 @@ export default function BackupPage() {
                 <th>Loại</th>
                 <th>Bản ghi</th>
                 <th>Checksum</th>
-                <th className="w-[150px]">Thao tác</th>
+                <th className="w-[188px] text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -339,20 +345,32 @@ export default function BackupPage() {
                     </td>
                     <td>{snapshot.recordCount.toLocaleString('vi-VN')}</td>
                     <td>
-                      <code className="text-[11px]">{(snapshot.checksum ?? '').slice(0, 12)}…</code>
+                      <code className="text-2xs">{(snapshot.checksum ?? '').slice(0, 12)}…</code>
                     </td>
-                    <td>
-                      <div className="flex gap-2">
-                        <LinkButton onClick={() => setViewSnapshot(snapshot)}>Xem</LinkButton>
-                        <LinkButton
+                    <td className="actions">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={<Eye size={14} aria-hidden />}
+                          aria-label={`Xem chi tiết ${snapshot.name}`}
+                          onClick={() => setViewSnapshot(snapshot)}
+                        >
+                          Xem
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={<RotateCcw size={14} aria-hidden />}
                           disabled={!isAdmin}
+                          title={isAdmin ? undefined : 'Chỉ quản trị viên được khôi phục dữ liệu'}
                           onClick={() => {
                             setRestoreSnapshot(snapshot);
                             setConfirmed(false);
                           }}
                         >
                           Khôi phục
-                        </LinkButton>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -363,11 +381,11 @@ export default function BackupPage() {
         </CardBody>
       </Card>
 
-      <Card className="mt-3">
+      <Card className="mt-4">
         <CardHead
           title="Nhật ký sao lưu"
+          icon={<HistoryIcon size={16} aria-hidden />}
           meta={`${data.backupRecords.length} bản`}
-          actions={<HistoryIcon size={15} className="text-muted" aria-hidden />}
         />
         <CardBody className="pt-2">
           <TableWrap className="max-h-[280px]">
@@ -393,7 +411,7 @@ export default function BackupPage() {
                     <td>{formatBytes(record.size)}</td>
                     <td>{record.recordCount.toLocaleString('vi-VN')}</td>
                     <td>
-                      <code className="text-[11px]">{(record.checksum ?? '').slice(0, 12)}…</code>
+                      <code className="text-2xs">{(record.checksum ?? '').slice(0, 12)}…</code>
                     </td>
                   </tr>
                 ))
@@ -406,8 +424,10 @@ export default function BackupPage() {
       <Modal
         open={viewSnapshot !== null}
         title="Chi tiết điểm khôi phục"
+        description="Thành phần dữ liệu được lưu trong điểm khôi phục này."
+        icon={<ShieldCheck size={18} aria-hidden />}
         onClose={() => setViewSnapshot(null)}
-        wide
+        size="lg"
         footer={<Button variant="primary" onClick={() => setViewSnapshot(null)}>Đóng</Button>}
       >
         {viewSnapshot ? (
@@ -418,7 +438,7 @@ export default function BackupPage() {
             <Split label="Tên">{viewSnapshot.name}</Split>
             <Split label="Tổng bản ghi">{viewSnapshot.recordCount.toLocaleString('vi-VN')}</Split>
             <Split label="SHA-256">
-              <code className="break-all text-[11px]">{viewSnapshot.checksum}</code>
+              <code className="break-all text-2xs">{viewSnapshot.checksum}</code>
             </Split>
             <TableWrap className="mt-3 max-h-[320px]">
               <thead>
@@ -445,6 +465,8 @@ export default function BackupPage() {
       <Modal
         open={restoreSnapshot !== null}
         title="Khôi phục từ điểm khôi phục"
+        description="Thao tác không thể hoàn tác trực tiếp trên màn hình này."
+        icon={<RotateCcw size={18} aria-hidden />}
         onClose={() => setRestoreSnapshot(null)}
         footer={
           <>
@@ -466,7 +488,7 @@ export default function BackupPage() {
           Thao tác ghi đè dữ liệu hiện tại bằng nội dung của điểm khôi phục. Hệ thống sẽ tự tạo một
           điểm bảo vệ hiện trạng trước khi ghi.
         </Notice>
-        <p className="mb-3 text-[13px]">
+        <p className="mb-3 text-base">
           <strong>{restoreSnapshot?.name}</strong> — {restoreSnapshot?.recordCount.toLocaleString('vi-VN')}{' '}
           bản ghi, tạo lúc {fmtDateTime(restoreSnapshot?.createdAt)}.
         </p>
@@ -480,6 +502,8 @@ export default function BackupPage() {
       <Modal
         open={restoreFile !== null}
         title="Phục hồi từ tệp sao lưu"
+        description="Hệ thống kiểm tra định dạng và checksum trước khi ghi dữ liệu."
+        icon={<Upload size={18} aria-hidden />}
         onClose={() => {
           setRestoreFile(null);
           setVerifyResult(null);
@@ -506,7 +530,7 @@ export default function BackupPage() {
           </>
         }
       >
-        <p className="mb-2 text-[13px]">
+        <p className="mb-2 text-base">
           Tệp: <strong>{restoreFile?.name}</strong>
         </p>
 

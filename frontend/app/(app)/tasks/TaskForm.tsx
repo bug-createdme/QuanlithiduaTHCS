@@ -1,5 +1,6 @@
 'use client';
 
+import { CheckSquare } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useScope } from '@/hooks/useScope';
 import { useToast } from '@/hooks/useToast';
@@ -7,7 +8,17 @@ import { toDateInput, todayISO } from '@/lib/format';
 import { REPEAT_RULE_LABEL, TASK_PRIORITY_LABEL, TASK_STATUS_LABEL, toOptions } from '@/lib/labels';
 import { ApiError, api } from '@/services/api';
 import type { ConfigItem, CustomFieldDefinition, Task } from '@/types';
-import { Button, Field, LoadingState, Select, TextArea, TextInput } from '@/components/ui';
+import {
+  Button,
+  DateInput,
+  Field,
+  FormSection,
+  LoadingState,
+  Notice,
+  Select,
+  TextArea,
+  TextInput,
+} from '@/components/ui';
 import { Modal } from '@/components/ui/Modal';
 import { CustomFieldInputs, collectCustomValues } from '@/components/entity/CustomFieldInputs';
 import { TaskDependencies } from './TaskDependencies';
@@ -203,15 +214,20 @@ export function TaskForm({
     <Modal
       open={open}
       title={taskId ? 'Cập nhật công việc' : 'Thêm công việc'}
+      description="Đầu việc có hạn hoàn thành, checklist con và quan hệ phụ thuộc."
+      icon={<CheckSquare size={18} aria-hidden />}
+      size="lg"
       onClose={onClose}
-      wide
       footer={
         <>
+          <span className="mr-auto hidden text-xs text-neutral-500 sm:block">
+            Trường có dấu <span className="font-bold text-danger-600">*</span> là bắt buộc.
+          </span>
           <Button onClick={onClose} disabled={saving}>
             Hủy
           </Button>
           <Button variant="primary" type="submit" form="taskForm" loading={saving}>
-            Lưu công việc
+            {taskId ? 'Lưu thay đổi' : 'Thêm công việc'}
           </Button>
         </>
       }
@@ -220,13 +236,23 @@ export function TaskForm({
         <LoadingState />
       ) : (
         <form id="taskForm" onSubmit={handleSubmit}>
+          {Object.keys(issues).length > 0 ? (
+            <Notice tone="danger" title="Chưa lưu được" className="mb-4">
+              Một số trường chưa hợp lệ. Các trường có lỗi được đánh dấu đỏ ngay bên dưới.
+            </Notice>
+          ) : null}
+
           <div className="form-grid">
+            <FormSection title="Thông tin công việc" />
+
             <Field label="Tiêu đề" required full error={issues.title}>
               <TextInput
                 value={values.title}
                 onChange={(e) => set('title', e.target.value)}
                 maxLength={200}
                 required
+                invalid={Boolean(issues.title)}
+                placeholder="Ví dụ: Chuẩn bị tiết chào cờ tuần 5"
               />
             </Field>
 
@@ -252,20 +278,22 @@ export function TaskForm({
               </Select>
             </Field>
 
+            <FormSection title="Thời gian và mức ưu tiên" />
+
             <Field label="Ngày bắt đầu">
-              <TextInput
-                type="date"
+              <DateInput
                 value={values.startDate}
-                onChange={(e) => set('startDate', e.target.value)}
+                onValueChange={(next) => set('startDate', next)}
               />
             </Field>
 
             <Field label="Hạn hoàn thành" required error={issues.dueDate}>
-              <TextInput
-                type="date"
+              <DateInput
                 value={values.dueDate}
-                onChange={(e) => set('dueDate', e.target.value)}
+                min={values.startDate || undefined}
+                onValueChange={(next) => set('dueDate', next)}
                 required
+                invalid={Boolean(issues.dueDate)}
               />
             </Field>
 
@@ -299,6 +327,8 @@ export function TaskForm({
               />
             </Field>
 
+            <FormSection title="Phối hợp và lặp lại" />
+
             <Field label="Người/bộ phận phối hợp">
               <TextInput
                 value={values.coordination}
@@ -318,13 +348,14 @@ export function TaskForm({
             </Field>
 
             <Field label="Kết thúc lặp (tùy chọn)">
-              <TextInput
-                type="date"
+              <DateInput
                 value={values.repeatUntil}
                 disabled={values.repeatRule === 'NONE'}
-                onChange={(e) => set('repeatUntil', e.target.value)}
+                onValueChange={(next) => set('repeatUntil', next)}
               />
             </Field>
+
+            <FormSection title="Checklist và ghi chú" />
 
             <Field
               label="Checklist con"
@@ -346,6 +377,7 @@ export function TaskForm({
               <TextArea value={values.notes} onChange={(e) => set('notes', e.target.value)} />
             </Field>
 
+            {customDefs.length > 0 ? <FormSection title="Trường tùy chỉnh của trường" /> : null}
             <CustomFieldInputs
               definitions={customDefs}
               values={customValues}
@@ -353,7 +385,12 @@ export function TaskForm({
             />
 
             {/* Phụ thuộc gắn theo công việc đã tồn tại nên chỉ hiện khi đang sửa. */}
-            {taskId ? <TaskDependencies taskId={taskId} /> : null}
+            {taskId ? (
+              <>
+                <FormSection title="Phụ thuộc giữa các công việc" />
+                <TaskDependencies taskId={taskId} />
+              </>
+            ) : null}
           </div>
         </form>
       )}

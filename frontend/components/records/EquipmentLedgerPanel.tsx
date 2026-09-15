@@ -10,6 +10,7 @@ import type { EquipmentTransaction, EquipmentTxType } from '@/types';
 import {
   Badge,
   Button,
+  DateInput,
   ErrorState,
   Field,
   LinkButton,
@@ -212,14 +213,14 @@ export function EquipmentLedgerPanel({
                   <td className="wrap">
                     {row.borrower ?? '—'}
                     {row.note ? (
-                      <div className="mt-0.5 text-[12px] text-muted">{row.note}</div>
+                      <div className="mt-0.5 text-xs text-muted">{row.note}</div>
                     ) : null}
                   </td>
                   <td>{row.borrowedAt ? fmtDate(row.borrowedAt) : '—'}</td>
                   <td>
                     {row.dueAt ? fmtDate(row.dueAt) : '—'}
                     {overdue ? (
-                      <span className="ml-1 text-[11px] font-semibold text-red">quá hạn</span>
+                      <span className="ml-1 text-2xs font-semibold text-red">quá hạn</span>
                     ) : null}
                   </td>
                   <td>{row.returnedAt ? fmtDate(row.returnedAt) : '—'}</td>
@@ -291,24 +292,23 @@ export function EquipmentLedgerPanel({
             />
           </Field>
           <Field label="Ngày mượn">
-            <TextInput
-              type="date"
+            <DateInput
               value={form.borrowedAt}
-              onChange={(e) => setForm({ ...form, borrowedAt: e.target.value })}
+              onValueChange={(borrowedAt) => setForm({ ...form, borrowedAt })}
             />
           </Field>
           <Field label="Hạn trả">
-            <TextInput
-              type="date"
+            <DateInput
               value={form.dueAt}
-              onChange={(e) => setForm({ ...form, dueAt: e.target.value })}
+              min={form.borrowedAt || undefined}
+              onValueChange={(dueAt) => setForm({ ...form, dueAt })}
             />
           </Field>
           <Field label="Ngày trả thực tế">
-            <TextInput
-              type="date"
+            <DateInput
               value={form.returnedAt}
-              onChange={(e) => setForm({ ...form, returnedAt: e.target.value })}
+              min={form.borrowedAt || undefined}
+              onValueChange={(returnedAt) => setForm({ ...form, returnedAt })}
             />
           </Field>
           <Field label="Tình trạng khi giao">

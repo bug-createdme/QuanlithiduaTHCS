@@ -137,6 +137,15 @@ export const USER_ROLE_LABEL: Record<UserRole, string> = {
   VIEWER: 'Chỉ xem',
 };
 
+/**
+ * Trạng thái dẫn xuất ở giao diện, không có trong enum của backend.
+ * "Quá hạn" được tính tại chỗ từ hạn hoàn thành so với ngày hôm nay; thiếu bảng
+ * này thì badge hiện mã thô "OVERDUE" cho người dùng.
+ */
+export const DERIVED_STATUS_LABEL: Record<string, string> = {
+  OVERDUE: 'Quá hạn',
+};
+
 /** Tông màu badge theo trạng thái — giữ quy tắc phối màu của statusBadge() gốc. */
 export type BadgeTone = 'default' | 'green' | 'blue' | 'yellow' | 'red';
 
@@ -157,6 +166,7 @@ export function statusTone(value: string | null | undefined): BadgeTone {
 export function statusLabel(value: string | null | undefined): string {
   if (!value) return '—';
   const tables: Array<Record<string, string>> = [
+    DERIVED_STATUS_LABEL,
     TASK_STATUS_LABEL,
     SHEET_STATUS_LABEL,
     PLAN_STATUS_LABEL,

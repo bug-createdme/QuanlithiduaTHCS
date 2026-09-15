@@ -1,6 +1,15 @@
 'use client';
 
-import { Download, FileCheck2, Package, Printer, Save } from 'lucide-react';
+import {
+  Download,
+  FileCheck2,
+  FileText,
+  History,
+  MoreHorizontal,
+  Package,
+  Printer,
+  Save,
+} from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useScope } from '@/hooks/useScope';
@@ -15,16 +24,18 @@ import {
   Card,
   CardBody,
   CardHead,
+  CardSkeleton,
   Checkbox,
+  EmptyState,
   ErrorState,
-  LinkButton,
+  Field,
   LoadingState,
   Notice,
   PageHead,
   Select,
   TextInput,
-  Toolbar,
 } from '@/components/ui';
+import { Menu, MenuItem, MenuLabel, MenuSeparator } from '@/components/ui/Menu';
 import { Modal } from '@/components/ui/Modal';
 
 const PREVIEW_TYPES: ReportType[] = ['WEEK', 'SCORES', 'TASKS', 'ACTIVITIES', 'EQUIPMENT'];
@@ -32,30 +43,35 @@ const PREVIEW_TYPES: ReportType[] = ['WEEK', 'SCORES', 'TASKS', 'ACTIVITIES', 'E
 /** Kết xuất nội dung báo cáo từ dữ liệu có cấu trúc do backend trả về. */
 function ReportView({ payload }: { payload: ReportPayload }) {
   return (
-    <article className="text-[13px] leading-relaxed">
-      <div className="text-center">
-        <small className="block uppercase">{payload.schoolName}</small>
-        <h2 className="my-2 text-[16px] font-bold">{payload.title}</h2>
-        <p className="m-0 text-[12.5px]">{payload.scopeLabel}</p>
-      </div>
+    <article className="mx-auto max-w-[860px] text-base leading-relaxed">
+      <header className="text-center">
+        <p className="m-0 text-xs font-bold uppercase tracking-[0.08em] text-neutral-500">
+          {payload.schoolName}
+        </p>
+        <h2 className="mx-auto mt-2 max-w-[36ch] text-2xl font-bold leading-snug text-ink text-balance">
+          {payload.title}
+        </h2>
+        <p className="m-0 mt-1.5 text-sm text-neutral-500">{payload.scopeLabel}</p>
+      </header>
 
-      <div className="mt-3 flex flex-wrap justify-between gap-2 text-[11.5px] text-muted">
+      <div className="mt-4 flex flex-wrap justify-between gap-2 border-y border-line py-2 text-xs text-neutral-500">
         <span>Tạo lúc: {fmtDateTime(payload.generatedAt)}</span>
         <span>Phạm vi dữ liệu: {payload.scopeLabel}</span>
       </div>
-      <hr className="my-2 border-0 border-t border-line" />
 
       {payload.sections.map((section, index) => (
-        <div key={index} className="mb-3">
+        <section key={index} className="mb-5">
           {section.heading ? (
-            <h3 className="mb-1 mt-3 text-[14px] font-bold">{section.heading}</h3>
+            <h3 className="mb-2 mt-5 border-l-[3px] border-brand-600 pl-2.5 text-lg font-bold text-ink">
+              {section.heading}
+            </h3>
           ) : null}
           {section.paragraph ? <p className="m-0">{section.paragraph}</p> : null}
           {section.notice ? (
             <Notice tone={section.notice.tone === 'warn' ? 'warn' : 'info'}>{section.notice.text}</Notice>
           ) : null}
           {section.table ? (
-            <div className="mt-1.5 overflow-x-auto">
+            <div className="mt-2 overflow-x-auto rounded-md border border-line">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -86,13 +102,14 @@ function ReportView({ payload }: { payload: ReportPayload }) {
               </table>
             </div>
           ) : null}
-        </div>
+        </section>
       ))}
 
-      <div className="mt-10 grid grid-cols-2 text-center">
+      <div className="mt-12 grid grid-cols-2 gap-4 text-center">
         {payload.signatures.map((label) => (
           <div key={label}>
-            <strong>{label}</strong>
+            <strong className="text-ink">{label}</strong>
+            <span aria-hidden className="mx-auto mt-14 block h-px w-2/3 bg-neutral-200" />
           </div>
         ))}
       </div>
@@ -183,23 +200,63 @@ export default function ReportsPage() {
   return (
     <>
       <PageHead
+        eyebrow={REPORT_TYPE_LABEL[type]}
         title="Báo cáo"
-        description="Tổng hợp số liệu đã xác nhận và truy ngược về bản ghi gốc."
+        description="Tổng hợp số liệu đã xác nhận trong phạm vi đang chọn và truy ngược về bản ghi gốc."
         actions={
           <>
-            <Button icon={<Package size={15} aria-hidden />} loading={busy} onClick={() => void createPackage()}>
-              Gói báo cáo chốt
-            </Button>
-            <Button
-              icon={<Download size={15} aria-hidden />}
-              onClick={() => void exportCsv()}
+            {/* Ba thao tác ít dùng gộp vào menu để hai hành động chính nổi bật. */}
+            <Menu
+              align="end"
+              label="Thao tác khác với báo cáo"
+              trigger={
+                <span className="btn">
+                  <MoreHorizontal size={15} aria-hidden />
+                  Thao tác khác
+                </span>
+              }
             >
-              Xuất CSV
-            </Button>
-            <Button icon={<Printer size={15} aria-hidden />} onClick={() => window.print()}>
-              In/Lưu PDF
-            </Button>
-            <Button icon={<Save size={15} aria-hidden />} onClick={() => void saveReport('DRAFT')}>
+              {(close) => (
+                <>
+                  <MenuLabel>Kết xuất</MenuLabel>
+                  <MenuItem
+                    icon={<Printer size={15} aria-hidden />}
+                    onClick={() => {
+                      close();
+                      window.print();
+                    }}
+                  >
+                    In hoặc lưu PDF
+                  </MenuItem>
+                  <MenuItem
+                    icon={<Download size={15} aria-hidden />}
+                    onClick={() => {
+                      close();
+                      void exportCsv();
+                    }}
+                  >
+                    Xuất CSV
+                  </MenuItem>
+                  <MenuSeparator />
+                  <MenuLabel>Cả năm học</MenuLabel>
+                  <MenuItem
+                    icon={<Package size={15} aria-hidden />}
+                    onClick={() => {
+                      close();
+                      void createPackage();
+                    }}
+                  >
+                    Tạo gói báo cáo chốt
+                  </MenuItem>
+                </>
+              )}
+            </Menu>
+
+            <Button
+              icon={<Save size={15} aria-hidden />}
+              loading={busy}
+              onClick={() => void saveReport('DRAFT')}
+            >
               Lưu nháp
             </Button>
             <Button
@@ -213,91 +270,106 @@ export default function ReportsPage() {
         }
       />
 
-      <Toolbar>
-        <Select
-          value={type}
-          onChange={(e) => setType(e.target.value as ReportType)}
-          className="w-auto"
-          aria-label="Loại báo cáo"
-        >
-          {PREVIEW_TYPES.map((value) => (
-            <option key={value} value={value}>
-              {REPORT_TYPE_LABEL[value]}
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={paper}
-          onChange={(e) => changePaper(e.target.value as 'landscape' | 'portrait')}
-          className="w-auto"
-          aria-label="Khổ in"
-        >
-          <option value="landscape">A4 ngang</option>
-          <option value="portrait">A4 dọc</option>
-        </Select>
-        <TextInput
-          value={recipient}
-          onChange={(e) => setRecipient(e.target.value)}
-          placeholder="Nơi nhận (tùy chọn)"
-          className="w-[200px]"
-          aria-label="Nơi nhận"
-        />
-        <Select
-          value={submission}
-          onChange={(e) => setSubmission(e.target.value)}
-          className="w-auto"
-          aria-label="Trạng thái gửi"
-        >
-          {toOptions(SUBMISSION_STATUS_LABEL).map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
-        <span className="ml-auto text-[12px] text-muted">Số liệu nguồn không sửa tại báo cáo</span>
-      </Toolbar>
+      <div className="no-print mb-3 grid gap-3 rounded-lg border border-line bg-card p-3.5 shadow-xs md:grid-cols-2 xl:grid-cols-4">
+        <Field label="Loại báo cáo">
+          <Select value={type} onChange={(e) => setType(e.target.value as ReportType)}>
+            {PREVIEW_TYPES.map((value) => (
+              <option key={value} value={value}>
+                {REPORT_TYPE_LABEL[value]}
+              </option>
+            ))}
+          </Select>
+        </Field>
 
-      <Notice tone="warn" className="no-print mb-2.5">
-        <strong>Nháp</strong> có thể tạo lại; <strong>báo cáo chốt</strong> lưu nội dung tĩnh, phiên
-        bản, bộ lọc, checksum và trạng thái gửi. Muốn sửa sau chốt phải tạo phiên bản mới.
+        <Field label="Khổ in">
+          <Select
+            value={paper}
+            onChange={(e) => changePaper(e.target.value as 'landscape' | 'portrait')}
+          >
+            <option value="landscape">A4 ngang</option>
+            <option value="portrait">A4 dọc</option>
+          </Select>
+        </Field>
+
+        <Field label="Nơi nhận" hint="Tùy chọn — in lên bản báo cáo đã chốt.">
+          <TextInput
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+            placeholder="Ví dụ: Phòng GD&ĐT Lệ Thủy"
+          />
+        </Field>
+
+        <Field label="Trạng thái gửi">
+          <Select value={submission} onChange={(e) => setSubmission(e.target.value)}>
+            {toOptions(SUBMISSION_STATUS_LABEL).map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </div>
+
+      <Notice tone="warn" title="Nháp và bản chốt khác nhau" className="no-print mb-3">
+        Bản <strong>nháp</strong> luôn tạo lại được từ số liệu hiện tại. Bản{' '}
+        <strong>đã chốt</strong> lưu nội dung tĩnh kèm phiên bản, bộ lọc, checksum và trạng thái
+        gửi — muốn sửa phải tạo phiên bản mới. Số liệu nguồn không sửa được tại trang này.
       </Notice>
 
       <Card>
-        <CardBody>
+        <CardBody className="p-6 md:p-8">
           {previewQuery.error ? (
             <ErrorState error={previewQuery.error} onRetry={() => void previewQuery.refetch()} />
           ) : previewQuery.loading && !previewQuery.data ? (
-            <LoadingState label="Đang tổng hợp số liệu…" />
+            <CardSkeleton lines={8} />
           ) : previewQuery.data ? (
             <ReportView payload={previewQuery.data} />
           ) : null}
         </CardBody>
       </Card>
 
-      <Card className="no-print mt-3">
+      <Card className="no-print mt-4">
         <CardHead
           title="Phiên bản báo cáo đã lưu"
+          icon={<History size={16} aria-hidden />}
           meta={`${savedQuery.data?.length ?? 0} phiên bản`}
         />
-        <CardBody className="pt-2">
+        <CardBody className="p-0">
           {(savedQuery.data ?? []).length === 0 ? (
-            <p className="py-4 text-center text-[13px] text-muted">Chưa lưu phiên bản báo cáo.</p>
+            <EmptyState
+              className="border-0 bg-transparent py-10"
+              icon={<FileText size={22} aria-hidden />}
+              title="Chưa lưu phiên bản nào"
+              hint="Dùng “Lưu nháp” hoặc “Chốt báo cáo” để tạo phiên bản đầu tiên."
+            />
           ) : (
-            <ul className="m-0 list-none divide-y divide-line p-0">
+            <ul className="m-0 list-none divide-y divide-neutral-100 p-0">
               {savedQuery.data!.map((report) => (
-                <li key={report.id} className="flex items-center gap-2.5 py-2">
+                <li
+                  key={report.id}
+                  className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-neutral-50"
+                >
+                  <span
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-neutral-100 text-neutral-500"
+                    aria-hidden
+                  >
+                    <FileText size={16} />
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <strong className="block truncate text-[13px]">{report.name}</strong>
-                    <small className="text-[11.5px] text-muted">
-                      {fmtDateTime(report.generatedAt)} • {REPORT_TYPE_LABEL[report.type]} • v
-                      {report.version} • {report.status === 'FINALIZED' ? 'đã chốt' : 'bản nháp'} •{' '}
-                      {SUBMISSION_STATUS_LABEL[report.submissionStatus]}
-                    </small>
+                    <strong className="block truncate text-base font-semibold text-ink">
+                      {report.name}
+                    </strong>
+                    <span className="mt-0.5 block truncate text-xs text-neutral-500">
+                      {fmtDateTime(report.generatedAt)} · {REPORT_TYPE_LABEL[report.type]} · phiên
+                      bản {report.version} · {SUBMISSION_STATUS_LABEL[report.submissionStatus]}
+                    </span>
                   </div>
-                  <Badge tone={report.status === 'FINALIZED' ? 'green' : 'yellow'}>
-                    {report.status === 'FINALIZED' ? 'Bất biến' : 'Nháp'}
+                  <Badge tone={report.status === 'FINALIZED' ? 'green' : 'yellow'} dot>
+                    {report.status === 'FINALIZED' ? 'Đã chốt' : 'Bản nháp'}
                   </Badge>
-                  <LinkButton onClick={() => setOpenReport(report)}>Mở lại</LinkButton>
+                  <Button size="sm" className="shrink-0" onClick={() => setOpenReport(report)}>
+                    Mở lại
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -308,6 +380,8 @@ export default function ReportsPage() {
       <Modal
         open={finalizeOpen}
         title="Chốt báo cáo"
+        description="Phiên bản đã chốt lưu nội dung bất biến để đối chiếu về sau."
+        icon={<FileCheck2 size={18} aria-hidden />}
         onClose={() => setFinalizeOpen(false)}
         footer={
           <>
@@ -334,8 +408,10 @@ export default function ReportsPage() {
       <Modal
         open={openReport !== null}
         title={openReport?.name ?? ''}
+        description="Bản lưu không tự cập nhật theo số liệu nguồn hiện tại."
+        icon={<FileText size={18} aria-hidden />}
         onClose={() => setOpenReport(null)}
-        wide
+        size="lg"
         footer={<Button variant="primary" onClick={() => setOpenReport(null)}>Đóng</Button>}
       >
         {openReport ? (
@@ -345,16 +421,16 @@ export default function ReportsPage() {
               {openReport.status === 'FINALIZED' ? 'đã chốt, bất biến' : 'bản nháp'}. Nội dung không
               tự cập nhật theo nguồn hiện tại.
             </Notice>
-            <div className="mb-2 flex flex-wrap justify-between gap-2 text-[12.5px]">
+            <div className="mb-2 flex flex-wrap justify-between gap-2 text-sm">
               <span className="text-muted">Nơi nhận/trạng thái gửi</span>
               <strong>
                 {openReport.recipient || 'Chưa ghi'} •{' '}
                 {SUBMISSION_STATUS_LABEL[openReport.submissionStatus]}
               </strong>
             </div>
-            <div className="mb-3 flex flex-wrap justify-between gap-2 text-[12.5px]">
+            <div className="mb-3 flex flex-wrap justify-between gap-2 text-sm">
               <span className="text-muted">Checksum nguồn</span>
-              <code className="break-all text-[11px]">
+              <code className="break-all text-2xs">
                 {openReport.sourceChecksum ?? 'Chưa có ở phiên bản cũ'}
               </code>
             </div>
@@ -364,7 +440,7 @@ export default function ReportsPage() {
                   return <ReportView payload={JSON.parse(openReport.contentText) as ReportPayload} />;
                 } catch {
                   return (
-                    <pre className="whitespace-pre-wrap text-[12px]">{openReport.contentText}</pre>
+                    <pre className="whitespace-pre-wrap text-xs">{openReport.contentText}</pre>
                   );
                 }
               })()

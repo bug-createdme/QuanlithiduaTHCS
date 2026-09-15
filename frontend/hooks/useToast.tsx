@@ -94,9 +94,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {/* Vị trí góc trên bên phải nổi bật nhất, luôn trên cùng mọi modal và cửa sổ (z-[99999]) */}
+      {/*
+        Góc trên bên phải, luôn nằm trên mọi modal (z-[99999]).
+        Trên điện thoại toast bám mép trên và trải rộng để đọc được bằng một mắt nhìn.
+      */}
       <div
-        className="pointer-events-none fixed top-5 right-5 z-[99999] flex w-[min(420px,calc(100vw-32px))] flex-col gap-2.5 mobile:top-3 mobile:right-3 mobile:left-3 mobile:w-auto"
+        className="pointer-events-none fixed right-5 top-5 z-[99999] flex w-[min(400px,calc(100vw-32px))] flex-col gap-2.5 mobile:left-3 mobile:right-3 mobile:top-3 mobile:w-auto"
         aria-live="polite"
         role="status"
       >
@@ -116,7 +119,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           const title = isSuccess
             ? 'Thành công'
             : isError
-              ? 'Lỗi thao tác'
+              ? 'Không thực hiện được'
               : isWarn
                 ? 'Cảnh báo'
                 : 'Thông báo';
@@ -124,69 +127,60 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           return (
             <div
               key={item.id}
-              className={cx(
-                'pointer-events-auto relative overflow-hidden flex items-start gap-3 rounded-2xl border bg-white/[0.98] p-3.5 shadow-[0_16px_36px_-6px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.06)] ring-1 ring-black/5 backdrop-blur-xl animate-toast-in transition-all duration-200 hover:shadow-2xl',
-                isSuccess && 'border-emerald-300/80 text-slate-800',
-                isError && 'border-rose-300/80 text-slate-800',
-                isWarn && 'border-amber-300/80 text-slate-800',
-                !isSuccess && !isError && !isWarn && 'border-sky-300/80 text-slate-800',
-              )}
+              className="pointer-events-auto relative flex animate-toast-in items-start gap-3 overflow-hidden rounded-lg border border-line bg-card p-3.5 shadow-lg"
             >
-              {/* Huy hiệu tròn biểu tượng đậm màu sắc nét */}
-              <div
+              {/* Dải màu bên trái: nhận diện loại thông báo mà không nhuộm cả thẻ. */}
+              <span
+                aria-hidden
                 className={cx(
-                  'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-sm ring-2 ring-white',
-                  isSuccess && 'bg-gradient-to-tr from-emerald-600 to-emerald-500 text-white',
-                  isError && 'bg-gradient-to-tr from-rose-600 to-rose-500 text-white',
-                  isWarn && 'bg-gradient-to-tr from-amber-600 to-amber-500 text-white',
-                  !isSuccess && !isError && !isWarn && 'bg-gradient-to-tr from-blue to-sky-500 text-white',
+                  'absolute inset-y-0 left-0 w-1',
+                  isSuccess && 'bg-success-500',
+                  isError && 'bg-danger-500',
+                  isWarn && 'bg-warning-500',
+                  !isSuccess && !isError && !isWarn && 'bg-brand-500',
+                )}
+              />
+
+              <span
+                className={cx(
+                  'mt-[1px] grid h-7 w-7 shrink-0 place-items-center rounded-md',
+                  isSuccess && 'bg-success-50 text-success-600',
+                  isError && 'bg-danger-50 text-danger-600',
+                  isWarn && 'bg-warning-50 text-warning-600',
+                  !isSuccess && !isError && !isWarn && 'bg-brand-50 text-brand-600',
                 )}
               >
-                <Icon size={18} strokeWidth={2.4} aria-hidden />
-              </div>
+                <Icon size={16} strokeWidth={2.2} aria-hidden />
+              </span>
 
-              {/* Nội dung thông báo */}
-              <div className="min-w-0 flex-1 pt-0.5">
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={cx(
-                      'text-[12.5px] font-bold tracking-tight',
-                      isSuccess && 'text-emerald-950',
-                      isError && 'text-rose-950',
-                      isWarn && 'text-amber-950',
-                      !isSuccess && !isError && !isWarn && 'text-sky-950',
-                    )}
-                  >
-                    {title}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-[12.5px] leading-relaxed text-slate-600 break-words font-medium">
+              <div className="min-w-0 flex-1">
+                <p className="m-0 text-sm font-bold text-ink">{title}</p>
+                <p className="mt-0.5 break-words text-sm leading-relaxed text-neutral-600">
                   {item.message}
                 </p>
               </div>
 
-              {/* Nút đóng nhanh */}
               <button
                 type="button"
                 onClick={() => remove(item.id)}
                 aria-label="Đóng thông báo"
-                className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 active:scale-95"
+                className="-mr-1 -mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
               >
                 <X size={15} aria-hidden />
               </button>
 
-              {/* Thanh tiến trình đếm ngược thời gian tự đóng */}
-              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] bg-slate-100/90 overflow-hidden">
-                <div
+              {/* Thanh đếm ngược tới lúc tự đóng. */}
+              <span className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] bg-neutral-100">
+                <span
                   className={cx(
-                    'h-full w-full animate-toast-timer origin-left',
-                    isSuccess && 'bg-emerald-500',
-                    isError && 'bg-rose-500',
-                    isWarn && 'bg-amber-500',
-                    !isSuccess && !isError && !isWarn && 'bg-blue',
+                    'block h-full w-full origin-left animate-toast-timer',
+                    isSuccess && 'bg-success-500',
+                    isError && 'bg-danger-500',
+                    isWarn && 'bg-warning-500',
+                    !isSuccess && !isError && !isWarn && 'bg-brand-500',
                   )}
                 />
-              </div>
+              </span>
             </div>
           );
         })}

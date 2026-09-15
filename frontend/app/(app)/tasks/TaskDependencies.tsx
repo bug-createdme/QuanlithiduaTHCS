@@ -36,7 +36,7 @@ function TaskLine({ task }: { task: TaskBrief }) {
   return (
     <>
       <span className="wrap">{task.title}</span>
-      <div className="mt-0.5 text-[12px] text-muted">
+      <div className="mt-0.5 text-xs text-muted">
         {TASK_STATUS_LABEL[task.status] ?? task.status} • hạn {fmtDate(task.dueDate)}
       </div>
     </>
@@ -188,12 +188,12 @@ export function TaskDependencies({ taskId }: { taskId: string }) {
           <span className="field-label">Việc khác đang chờ công việc này</span>
           <ul className="m-0 list-none space-y-1 p-0">
             {view.blocking.map((dep) => (
-              <li key={dep.id} className="text-[13px]">
+              <li key={dep.id} className="text-base">
                 <TaskLine task={dep.task} />
               </li>
             ))}
           </ul>
-          <p className="mt-1.5 text-[12px] text-muted">
+          <p className="mt-1.5 text-xs text-muted">
             Hoãn hoặc xóa công việc này sẽ ảnh hưởng tới {view.blocking.length} việc ở trên.
           </p>
         </div>
