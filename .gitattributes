@@ -1,0 +1,29 @@
+# Chuẩn hóa ký tự xuống dòng khi commit và khi lấy mã về.
+#
+# Kho này được phát triển trên Windows (core.autocrlf=true) nhưng chạy thật
+# trên Linux. Không có tệp này thì script shell commit từ Windows sẽ mang ký tự
+# CR ở cuối mỗi dòng, và Linux báo lỗi rất khó đoán:
+#   /bin/bash^M: bad interpreter: No such file or directory
+
+# Mặc định: Git tự nhận diện tệp văn bản, lưu LF trong kho.
+* text=auto
+
+# Bắt buộc LF — những tệp này được Linux thực thi hoặc đọc trực tiếp.
+*.sh            text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+Dockerfile      text eol=lf
+*.Dockerfile    text eol=lf
+Caddyfile       text eol=lf
+.env.example    text eol=lf
+*.sql           text eol=lf
+
+# Tệp nhị phân — Git không được đụng vào.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.webp          binary
+*.ico           binary
+*.pdf           binary
+*.zip           binary
+*.dump          binary

@@ -1,0 +1,145 @@
+# Ngăn xếp production hoàn chỉnh — dùng ĐỘC LẬP, không ghép với
+# docker-compose.yml ở thư mục gốc.
+#
+#   docker compose -f docker/docker-compose.prod.yml up -d --build
+#
+# Cố ý viết tách rời thay vì chồng lớp lên tệp compose phát triển, vì tệp kia
+# có Adminer mở cổng 8081 và PostgreSQL mở cổng 5433 ra ngoài. Chồng lớp thì
+# rất dễ vô tình mang cả hai thứ đó lên máy chủ thật.
+#
+# Ở đây CHỈ Caddy mở cổng ra Internet. PostgreSQL, backend và frontend chỉ nói
+# chuyện với nhau trong mạng nội bộ của Docker.
+
+name: tpt-doi
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Hãy đặt POSTGRES_USER trong .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Hãy đặt POSTGRES_PASSWORD trong .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Hãy đặt POSTGRES_DB trong .env}
+      # Sắp xếp chuỗi theo tiếng Việt. Lược đồ không dùng COLLATE ở cột nào nên
+      # đây chỉ ảnh hưởng ORDER BY mặc định, không ảnh hưởng tính đúng đắn.
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=vi-VN --encoding=UTF8"
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+      PGTZ: ${TZ:-Asia/Ho_Chi_Minh}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    # KHÔNG mở cổng ra ngoài. Cần truy cập từ máy bạn thì dùng đường hầm SSH:
+    #   ssh -L 5432:localhost:5432 user@may-chu
+    # rồi docker compose exec postgres psql ...
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # Trong mạng nội bộ Docker, PostgreSQL vẫn nghe ở cổng 5432.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      # Cùng origin nên CORS gần như không dùng tới, nhưng vẫn khai báo đúng
+      # để mọi yêu cầu có Origin đều được chấp nhận hợp lệ.
+      CORS_ORIGIN: https://${DOMAIN:?Hãy đặt DOMAIN trong .env}
+      JWT_SECRET: ${JWT_SECRET:?Hãy sinh JWT_SECRET ngẫu nhiên}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Hãy sinh JWT_REFRESH_SECRET ngẫu nhiên}
+      MAX_FILE_MB: ${MAX_FILE_MB:-25}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # BẮT BUỘC. today() trong lib/dates.ts lấy ngày theo giờ hệ thống; máy chủ
+      # Linux mặc định chạy UTC, lệch 7 tiếng so với Việt Nam, nên từ 00:00 đến
+      # 07:00 giờ Việt Nam hệ thống sẽ tưởng vẫn là hôm qua. Sai cả ngày ở công
+      # việc lặp, lịch tuần và bảng điều khiển.
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+    volumes:
+      - uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        # Đường dẫn TƯƠNG ĐỐI, không phải URL đầy đủ. services/api.ts dựng URL
+        # bằng `new URL(BASE_URL + path, window.location.origin)` nên giá trị
+        # này ghép thẳng vào origin đang mở — tức cùng tên miền với giao diện.
+        # Nhờ vậy cookie refresh (sameSite=lax) mới được gửi kèm.
+        NEXT_PUBLIC_API_URL: /api
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+
+  # Nạp dữ liệu khởi tạo — CHỈ chạy một lần, lúc dựng hệ thống lần đầu:
+  #     docker compose -f docker/docker-compose.prod.yml --profile seed run --rm seed
+  #
+  # Dùng lại giai đoạn `builder` của backend.Dockerfile vì ở đó có sẵn tsx và
+  # toàn bộ devDependencies. Nhờ vậy image chạy thật không phải mang theo công
+  # cụ phát triển, mà seed vẫn chạy được ngoại tuyến với đúng phiên bản đã ghim.
+  #
+  # `profiles` khiến dịch vụ này bị bỏ qua trong lệnh `up` thông thường.
+  seed:
+    profiles: ["seed"]
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+      target: builder
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+      # Tài khoản quản trị đầu tiên. Đặt SEED_ADMIN_PASSWORD trong .env để
+      # KHÔNG bao giờ tồn tại mật khẩu mặc định "admin@" trên máy chủ thật,
+      # kể cả trong khoảnh khắc giữa lúc seed xong và lúc đăng nhập lần đầu.
+      SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-admin}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Hãy đặt SEED_ADMIN_PASSWORD trong .env}
+      SEED_ADMIN_FULLNAME: ${SEED_ADMIN_FULLNAME:-Tổng phụ trách Đội}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+    command: ["npx", "tsx", "prisma/seed.ts"]
+    restart: "no"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+      MAX_BODY_SIZE: ${MAX_BODY_SIZE:-200MB}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+
+volumes:
+  pgdata:
+    name: tpt_doi_pgdata_prod
+  uploads:
+    name: tpt_doi_uploads_prod
+  caddy_data:
+    name: tpt_doi_caddy_data
+  caddy_config:
+    name: tpt_doi_caddy_config
+  caddy_logs:
+    name: tpt_doi_caddy_logs

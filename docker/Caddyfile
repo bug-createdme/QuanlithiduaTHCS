@@ -1,0 +1,47 @@
+# Cổng vào duy nhất của hệ thống. Caddy tự xin và tự gia hạn chứng chỉ
+# Let's Encrypt cho {$DOMAIN}, nên không cần cấu hình TLS thủ công.
+#
+# ĐIỂM QUAN TRỌNG NHẤT của tệp này: frontend và backend nằm sau CÙNG MỘT tên
+# miền. Cookie refresh được đặt với sameSite=lax (xem auth.routes.ts), nên nếu
+# tách giao diện và API sang hai tên miền khác nhau thì trình duyệt sẽ không
+# gửi kèm cookie, và người dùng bị đăng xuất sau mỗi 15 phút khi access token
+# hết hạn. Cùng origin cũng làm CORS gần như không còn cần thiết.
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Giới hạn kích thước yêu cầu, chống nghẽn ổ đĩa vì tải lên quá lớn.
+	# Backend cho tối đa 20 tệp × MAX_FILE_MB mỗi lượt; con số dưới đây nới
+	# rộng hơn mức dùng thật của một trường để backend còn kịp trả thông báo
+	# tiếng Việt của chính nó, thay vì bị Caddy cắt ngang bằng lỗi 413 trống.
+	request_body {
+		max_size {$MAX_BODY_SIZE:200MB}
+	}
+
+	# API đi trước: handle khớp theo thứ tự khai báo.
+	handle /api/* {
+		reverse_proxy backend:4000
+	}
+
+	# Còn lại là giao diện Next.js.
+	handle {
+		reverse_proxy frontend:3000
+	}
+
+	header {
+		# Ép HTTPS cho các lần truy cập sau.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Không tiết lộ phần mềm máy chủ.
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 10MB
+			roll_keep 5
+		}
+	}
+}
