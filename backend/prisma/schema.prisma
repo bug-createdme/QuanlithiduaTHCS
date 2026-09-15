@@ -6,6 +6,12 @@
 
 generator client {
   provider = "prisma-client-js"
+  // `native` phục vụ máy đang phát triển. Hai đích còn lại là Alpine trong
+  // Docker: ARM64 cho máy chủ Oracle Cloud Ampere, AMD64 cho VPS x86 thông
+  // thường. Khai báo tường minh để image build ở máy này vẫn chạy được trên
+  // máy kia — nếu chỉ để `native`, build trên Windows x86 rồi đẩy sang máy
+  // chủ ARM sẽ sinh engine sai kiến trúc và sập ngay lúc khởi động.
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
