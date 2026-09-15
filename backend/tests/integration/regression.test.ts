@@ -336,6 +336,53 @@ describe('Hồi quy — lỗi đã sửa trong đợt kiểm thử bàn giao', (
     });
   });
 
+  // ── BUG-008 ───────────────────────────────────────────────────────────────
+  /**
+   * Lưu ý về nền tảng: Windows chấp nhận cả `/` lẫn `\` làm dấu phân tách, nên
+   * bài kiểm đường dẫn cũ ở dưới chỉ THỰC SỰ phân biệt đúng/sai khi chạy trên
+   * Linux. Bài kiểm đầu tiên thì phân biệt được trên mọi hệ điều hành, vì nó
+   * kiểm chính chuỗi được ghi vào cơ sở dữ liệu.
+   */
+  describe('BUG-008 · Đường dẫn tệp đính kèm chạy được trên cả Windows lẫn Linux', () => {
+    const CONTENT = Buffer.from('noi dung kiem tra dau phan tach duong dan');
+    let attachmentId = '';
+
+    beforeAll(async () => {
+      const response = await request()
+        .post('/api/documents/upload')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .field('schoolYearId', ctx.year.id)
+        .attach('files', CONTENT, 'duong-dan.txt')
+        .expect(201);
+      const detail = await api.get(`/api/documents/${response.body.data[0].id}`).expect(200);
+      attachmentId = detail.body.data.attachments[0].id;
+    });
+
+    it('ghi storage_path bằng dấu / chứ không phải \\ của Windows', async () => {
+      const attachment = await prisma.attachment.findUniqueOrThrow({
+        where: { id: attachmentId },
+      });
+      expect(attachment.storagePath).not.toContain('\\');
+      expect(attachment.storagePath).toMatch(/^[0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]{64}\.txt$/);
+    });
+
+    it('vẫn tải được bản ghi cũ đã lỡ lưu dấu \\', async () => {
+      const before = await prisma.attachment.findUniqueOrThrow({ where: { id: attachmentId } });
+      // Tái hiện đúng dữ liệu mà bản chạy trên Windows trước đây sinh ra.
+      await prisma.attachment.update({
+        where: { id: attachmentId },
+        data: { storagePath: before.storagePath.replace(/\//g, '\\') },
+      });
+
+      await api.get(`/api/documents/attachments/${attachmentId}/download`).expect(200);
+
+      await prisma.attachment.update({
+        where: { id: attachmentId },
+        data: { storagePath: before.storagePath },
+      });
+    });
+  });
+
   // ── BD-01 ─────────────────────────────────────────────────────────────────
   /**
    * Đặt cuối tệp có chủ ý: hai thao tác này đóng năm học và xóa dữ liệu mẫu,

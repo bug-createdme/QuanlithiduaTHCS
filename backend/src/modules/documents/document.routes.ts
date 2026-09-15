@@ -11,6 +11,7 @@ import { badRequest, businessRule, notFound } from '../../lib/errors';
 import { asyncHandler, created, noContent, ok, parseOrThrow } from '../../lib/http';
 import { logger } from '../../lib/logger';
 import { prisma } from '../../lib/prisma';
+import { buildStoragePath, resolveStoragePath } from '../../lib/storage';
 import { buildSearchText, escapeLike, normalizeText } from '../../lib/text';
 import { currentUserId, requireAuth, requireWrite } from '../../middleware/auth';
 import { optionalDate, optionalLongText, optionalText, optionalUuid } from '../entities/entity.schemas';
@@ -50,8 +51,8 @@ async function persistFile(buffer: Buffer, originalName: string): Promise<{
 }> {
   const checksum = crypto.createHash('sha256').update(buffer).digest('hex');
   const ext = path.extname(originalName).toLowerCase();
-  const relative = path.join(checksum.slice(0, 2), checksum.slice(2, 4), `${checksum}${ext}`);
-  const absolute = path.join(env.uploadDir, relative);
+  const relative = buildStoragePath(checksum, ext);
+  const absolute = resolveStoragePath(env.uploadDir, relative);
 
   await fs.mkdir(path.dirname(absolute), { recursive: true });
   await fs.writeFile(absolute, buffer);
@@ -390,7 +391,7 @@ documentsRouter.get(
     const attachment = await prisma.attachment.findFirst({ where: { id, deletedAt: null } });
     if (!attachment) throw notFound('Tệp đính kèm');
 
-    const absolute = path.join(env.uploadDir, attachment.storagePath);
+    const absolute = resolveStoragePath(env.uploadDir, attachment.storagePath);
     try {
       await fs.access(absolute);
     } catch {
@@ -486,7 +487,7 @@ documentsRouter.delete(
       }
       // Xóa tệp vật lý; thất bại thì ghi log chứ không chặn xóa bản ghi.
       try {
-        await fs.unlink(path.join(env.uploadDir, attachment.storagePath));
+        await fs.unlink(resolveStoragePath(env.uploadDir, attachment.storagePath));
       } catch (error) {
         logger.warn({ error, attachmentId: attachment.id }, 'Không xóa được tệp trên đĩa');
       }

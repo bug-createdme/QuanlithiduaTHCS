@@ -8,6 +8,7 @@ node_modules/
 .env.local
 .env.*.local
 .env.example
+.env.bak-docker
 
 # ---- Kết quả build ----
 dist/
