@@ -54,7 +54,7 @@ Compute → Instances → Create Instance:
 
 | Mục | Chọn |
 |---|---|
-| Image | **Ubuntu 22.04** (hoặc 24.04) |
+| Image | **Ubuntu 24.04 LTS** — hỗ trợ tới 4/2029; 22.04 hết hỗ trợ tiêu chuẩn từ 4/2027 |
 | Shape | **VM.Standard.A1.Flex** — 4 OCPU, 24 GB RAM |
 | Boot volume | 100–200 GB |
 | SSH key | Tải khóa riêng về và giữ kỹ |
@@ -137,7 +137,7 @@ miền thật. Giữ nguyên `TZ=Asia/Ho_Chi_Minh`.
 ## 5. Khởi động
 
 ```bash
-docker compose -f docker/docker-compose.prod.yml up -d --build
+docker compose --env-file /opt/tpt-doi/.env -f docker/docker-compose.prod.yml up -d --build
 ```
 
 Lần đầu mất khoảng 5–10 phút vì phải biên dịch trên máy ARM. Backend tự chạy
@@ -146,13 +146,13 @@ Lần đầu mất khoảng 5–10 phút vì phải biên dịch trên máy ARM.
 Nạp dữ liệu khởi tạo — **chỉ chạy một lần duy nhất**:
 
 ```bash
-docker compose -f docker/docker-compose.prod.yml --profile seed run --rm seed
+docker compose --env-file /opt/tpt-doi/.env -f docker/docker-compose.prod.yml --profile seed run --rm seed
 ```
 
 Theo dõi quá trình Caddy xin chứng chỉ:
 
 ```bash
-docker compose -f docker/docker-compose.prod.yml logs -f caddy
+docker compose --env-file /opt/tpt-doi/.env -f docker/docker-compose.prod.yml logs -f caddy
 ```
 
 Xong thì mở `https://<tên-miền-của-bạn>` và đăng nhập bằng `admin` với mật khẩu
@@ -174,7 +174,6 @@ sudo apt install -y rclone && rclone config
 Bật sao lưu hằng ngày lúc 2 giờ sáng:
 
 ```bash
-chmod +x /opt/tpt-doi/docker/backup.sh
 crontab -e
 ```
 
@@ -204,7 +203,7 @@ khôi phục thử thì chưa biết là có dùng được hay không.
 cd /opt/tpt-doi
 ./docker/backup.sh                                              # sao lưu trước
 git pull
-docker compose -f docker/docker-compose.prod.yml up -d --build
+docker compose --env-file /opt/tpt-doi/.env -f docker/docker-compose.prod.yml up -d --build
 ```
 
 Migration mới được áp dụng tự động lúc backend khởi động.
@@ -216,7 +215,7 @@ Migration mới được áp dụng tự động lúc backend khởi động.
 **Không vào được từ Internet.** Kiểm tra theo thứ tự từ trong ra ngoài:
 
 ```bash
-docker compose -f docker/docker-compose.prod.yml ps        # container còn chạy?
+docker compose --env-file /opt/tpt-doi/.env -f docker/docker-compose.prod.yml ps        # container còn chạy?
 curl -I http://localhost                                   # Caddy trả lời trong máy?
 sudo ss -tlnp | grep -E ':80|:443'                         # cổng có được nghe?
 ```
@@ -236,13 +235,13 @@ tên miền khác.
 **Xem nhật ký:**
 
 ```bash
-docker compose -f docker/docker-compose.prod.yml logs -f backend
+docker compose --env-file /opt/tpt-doi/.env -f docker/docker-compose.prod.yml logs -f backend
 ```
 
 **Truy cập cơ sở dữ liệu.** PostgreSQL cố ý không mở cổng ra ngoài. Dùng:
 
 ```bash
-docker compose -f docker/docker-compose.prod.yml exec postgres \
+docker compose --env-file /opt/tpt-doi/.env -f docker/docker-compose.prod.yml exec postgres \
   psql -U tpt -d tpt_doi_thcs
 ```
 

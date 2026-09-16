@@ -2,6 +2,15 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# openssl cần có Ở ĐÂY, không chỉ ở giai đoạn chạy.
+#
+# `prisma generate` dò phiên bản OpenSSL của máy để quyết định engine nào là
+# "native". Không có openssl thì nó không dò được, mặc định về openssl-1.1.x và
+# sinh ra `libquery_engine-linux-musl.so.node`. Alpine hiện nay dùng libssl.so.3
+# nên engine đó không nạp được, và dịch vụ `seed` — vốn chạy từ chính giai đoạn
+# builder này — sẽ chết với lỗi "Error loading shared library libssl.so.1.1".
+RUN apk add --no-cache openssl
+
 # Cài phụ thuộc trước để tận dụng cache tầng.
 COPY backend/package*.json ./
 RUN npm ci

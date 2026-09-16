@@ -24,7 +24,16 @@ KEEP_DAYS="${KEEP_DAYS:-14}"
 RCLONE_DEST="${RCLONE_DEST:-}"
 UPLOADS_VOLUME="${UPLOADS_VOLUME:-tpt_doi_uploads_prod}"
 
-COMPOSE=(docker compose -f "${PROJECT_DIR}/docker/docker-compose.prod.yml")
+# `--env-file` là bắt buộc, không phải cho gọn.
+#
+# Docker Compose xác định thư mục dự án theo vị trí tệp compose, nên với
+# `-f .../docker/docker-compose.prod.yml` nó đi tìm `.env` trong `docker/` chứ
+# không phải ở thư mục gốc. Thiếu cờ này thì mọi biến đều rỗng và script chết
+# ngay từ lệnh pg_dump — lặng lẽ, vào 2 giờ sáng, khi không ai nhìn.
+#
+# Không dùng `--project-directory` để sửa: nó sẽ đổi gốc phân giải của
+# `./Caddyfile` trong tệp compose và làm Caddy không khởi động được.
+COMPOSE=(docker compose --env-file "${PROJECT_DIR}/.env" -f "${PROJECT_DIR}/docker/docker-compose.prod.yml")
 STAMP="$(date +%Y%m%d-%H%M%S)"
 DB_FILE="${BACKUP_DIR}/db-${STAMP}.dump"
 FILES_FILE="${BACKUP_DIR}/uploads-${STAMP}.tar.gz"
