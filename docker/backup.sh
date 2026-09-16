@@ -55,11 +55,20 @@ log "Đang kết xuất cơ sở dữ liệu…"
 
 # Kiểm tra bản kết xuất ĐỌC ĐƯỢC, không chỉ kiểm tra nó tồn tại. Đây là khác
 # biệt giữa "có sao lưu" và "có sao lưu dùng được".
+#
+# Phải cho pg_restore một TỆP THẬT, không phải đường ống: định dạng custom có
+# mục lục ở cuối tệp nên pg_restore cần tua tới lui, mà `/dev/stdin` của một
+# đường ống thì không tua được — nó sẽ báo "did not find magic string in file
+# header" ngay cả với bản kết xuất hoàn toàn lành lặn.
+#
+# Gắn thư mục sao lưu ở chế độ chỉ đọc vào một container tạm, giống cách bước
+# đóng gói tệp đính kèm bên dưới vẫn làm.
 log "Đang kiểm tra bản kết xuất…"
-"${COMPOSE[@]}" exec -T postgres pg_restore --list /dev/stdin < "${DB_FILE}" > /dev/null \
+LISTING="$(docker run --rm -v "${BACKUP_DIR}:/backup:ro" postgres:17-alpine \
+	pg_restore --list "/backup/$(basename "${DB_FILE}")" 2>&1)" \
 	|| die "bản kết xuất hỏng, pg_restore không đọc được: ${DB_FILE}"
 
-TABLES="$("${COMPOSE[@]}" exec -T postgres pg_restore --list /dev/stdin < "${DB_FILE}" | grep -c 'TABLE DATA' || true)"
+TABLES="$(printf '%s\n' "${LISTING}" | grep -c 'TABLE DATA' || true)"
 log "Cơ sở dữ liệu: $(du -h "${DB_FILE}" | cut -f1), ${TABLES} bảng có dữ liệu"
 
 # ── 2. Tệp đính kèm ─────────────────────────────────────────────────────────
