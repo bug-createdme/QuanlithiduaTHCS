@@ -159,7 +159,7 @@ export default function LoginPage() {
           </span>
           <div>
             <p className="m-0 flex flex-wrap items-center gap-1.5 text-2xs font-bold uppercase tracking-[0.1em] text-brand-200">
-              <span>Phòng GD&amp;ĐT huyện Lệ Thủy</span>
+              <span>Ủy ban nhân dân xã Lệ Ninh</span>
               <span aria-hidden className="h-1 w-1 rounded-full bg-brand-300" />
               <span>Liên đội TNTP Hồ Chí Minh</span>
             </p>
@@ -242,7 +242,7 @@ export default function LoginPage() {
           </span>
           <div>
             <p className="m-0 text-2xs font-bold uppercase tracking-[0.1em] text-brand-200">
-              Phòng GD&amp;ĐT Lệ Thủy
+              Ủy ban nhân dân xã Lệ Ninh
             </p>
             <p className="m-0 text-md font-bold uppercase text-white">THCS Lệ Ninh</p>
           </div>
